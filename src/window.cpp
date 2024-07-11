@@ -7,11 +7,14 @@
 #include <Windows.h>
 #include <stdio.h>
 #include <string>
+#include <mutex>
 
 using namespace std;
 
 //global defs
 volatile bool g_alive = false;
+volatile bool g_exit_error = false;
+static mutex _draw_lock;
 
 static HWND _handle;
 static HDC _win_hDC;
@@ -19,8 +22,6 @@ static WNDCLASS _wnd_class;
 
 static int _buf_width = -1;
 static int _buf_height = -1;
-static int _wnd_width = -1;
-static int _wnd_height = -1;
 
 static int _frames = -1;
 static FILETIME _start_frame_time = { 0 };
@@ -28,6 +29,39 @@ static FILETIME _start_total_time = { 0 };
 
 static PIXEL* _buf = NULL;  //heap allocated array of uint32 for each pixel on screen to hold color value
 static BITMAPINFO _bmp_info;
+
+/*
+* Resize operations
+*/
+static bool resize(int width, int height)
+{
+    log(DEBUG, "resize");
+
+    //aquire lock so buffer not modified or cleared while resizing
+    _draw_lock.lock();
+
+    //assume width and height are for buffer
+    _buf_width = width;
+    _buf_height = height;
+
+    //reallocate buffer
+    void* tmp = realloc((void*)_buf, (size_t)_buf_height * (size_t)_buf_width * sizeof(PIXEL));
+    if (tmp == NULL)
+    {
+        log(ERR, "Failed to heap allocate window buffer");
+        _draw_lock.unlock();
+        return false;
+    }
+    _buf = (PIXEL*)tmp;
+
+    //modify bitmap
+    _bmp_info.bmiHeader.biHeight = -height;
+    _bmp_info.bmiHeader.biWidth = width;
+
+    //unlock and return success
+    _draw_lock.unlock();
+    return true;
+}
 
 
 /*
@@ -46,14 +80,23 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_PAINT:
     {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
+        //aquire lock
+        _draw_lock.lock();
+        if (_buf == NULL)
+        {
+            log(ERR, "buffer not allocated");
+            g_exit_error = true;
+            _draw_lock.unlock();
+            SendMessage(_handle, WM_DESTROY, 0, 0);
+            return 0;
+        }
 
-        // All painting occurs here, between BeginPaint and EndPaint.
-
-        FillRect(hdc, &ps.rcPaint, (HBRUSH)(COLOR_WINDOW + 1));
-
-        EndPaint(hwnd, &ps);
+        RECT wsize;
+        GetClientRect(hwnd, &wsize);
+        StretchDIBits(_win_hDC, 0, 0, wsize.right, wsize.bottom, 0, 0, _buf_width, _buf_height, _buf, &_bmp_info, DIB_RGB_COLORS, SRCCOPY);
+        ValidateRect(_handle, NULL);
+        //release lock
+        _draw_lock.unlock();
     }
     return 0;
     case WM_SIZE:
@@ -61,9 +104,12 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         int width = LOWORD(lParam);  // Macro to get the low-order word.
         int height = HIWORD(lParam); // Macro to get the high-order word.
 
-        // Respond to the message:
-        _buf_width = width;
-        _buf_height = height;
+        //width and height are of client area (buffer)
+        if (!resize(width, height))
+        {
+            g_exit_error = true;
+            SendMessage(_handle, WM_DESTROY, 0, 0);
+        }
     }
     return 0;
     }
@@ -100,8 +146,6 @@ int create_window(const char* name, int width, int height)
     //get top left of desired window
     x = (GetSystemMetrics(SM_CXSCREEN) - width) >> 1;
     y = (GetSystemMetrics(SM_CYSCREEN) - height) >> 1;
-    _buf_width = width;
-    _buf_height = height;
     log(DEBUG, "x: " + to_string(x) + "|y: " + to_string(y));
 
     //set rect buf
@@ -114,10 +158,9 @@ int create_window(const char* name, int width, int height)
     //calculate actual window size
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW | WS_VISIBLE, false);
 
-    //get actual window values from modified rect
-    _wnd_height = rect.right - rect.left;
-    _wnd_width = rect.bottom - rect.top;
-    log(DEBUG, "window height: " + to_string(_wnd_height) + "|window width: " + to_string(_wnd_width));
+    _buf_width = rect.right - rect.left;
+    _buf_height = rect.bottom - rect.top;
+    log(DEBUG, "width: " + to_string(_buf_width) + "|height: " + to_string(_buf_height));
 
     //create window handle
     _handle = CreateWindowEx(
@@ -125,7 +168,7 @@ int create_window(const char* name, int width, int height)
         name,
         name,
         WS_OVERLAPPEDWINDOW | WS_VISIBLE,
-        x, y, _wnd_width, _wnd_height,
+        x, y, _buf_width, _buf_height,
         NULL,
         NULL,
         NULL,
@@ -182,18 +225,24 @@ void window_update()
 /*
 * Clear buffer to only black
 */
-bool window_clear()
+void window_clear()
 {
+    //aquire lock to make sure resizing cannot occur during modification
+    _draw_lock.lock();
     log(DEBUG, "clearing window");
     if (_buf == NULL)
     {
         log(ERR, "buffer not allocated");
-        return false;
+        g_exit_error = true;
+        _draw_lock.unlock();
+        SendMessage(_handle, WM_DESTROY, 0, 0);
+        return;
     }
 
     memset(_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(PIXEL));
 
-    return true;
+    //unlock and return succeess
+    _draw_lock.unlock();
 }
 
 /*
@@ -222,7 +271,7 @@ void window_sync_begin()
 /*
 * Sleep window to sync to max fps
 */
-void window_sleep(long long time)
+static void window_sleep(long long time)
 {
     log(DEBUG, "sleeping window");
     HANDLE timer;
@@ -279,7 +328,7 @@ void window_sync_end(int fps_cap, bool print_fps)
 
     if (current_frame_time.QuadPart - start_total_time.QuadPart >= 10000000) //1 second
     {
-        printf("fps: %d", _frames);
+        printf("fps: %d\n", _frames);
         _start_total_time = ft;
         _frames = 0;
     }

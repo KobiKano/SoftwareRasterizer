@@ -13,7 +13,7 @@ void logger_set_level(LEVEL level)
 void log(LEVEL level, std::string msg)
 {
 	//check if logger level is higher than given level
-	if (level > _level)
+	if (level < _level)
 		return; //do nothing
 
 	//else print desired statement

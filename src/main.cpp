@@ -10,7 +10,7 @@
 void main(int argc, char* argv[])
 {
 	//set logger level
-	logger_set_level(DEBUG);
+	logger_set_level(WARNING);
 
 	//create window
 	if (create_window("SoftwareRasterizer", 512, 512) != 0)

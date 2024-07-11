@@ -4,6 +4,7 @@
 #include <iostream>
 
 extern volatile bool g_alive;
+extern volatile bool g_exit_error;
 
 void proc_loop()
 {
@@ -15,6 +16,8 @@ void proc_loop()
 			//window closed
 			log(DEBUG, "window termined");
 			window_remove();
+			if (g_exit_error)
+				exit(-1);
 			exit(0);
 		}
 
@@ -22,8 +25,7 @@ void proc_loop()
 		window_sync_begin();
 
 		//clear screen
-		if (!window_clear())
-			exit(-1);
+		window_clear();
 
 		//TODO: ADD DRAW FUNCTIONS
 
