@@ -4,6 +4,7 @@
 
 #include "window.h"
 #include "logger.h"
+#include "funcs.h"
 #include <iostream>
 
 void main(int argc, char* argv[])
@@ -18,18 +19,11 @@ void main(int argc, char* argv[])
 		exit(-1);
 	}
 
-	//run loop on this process(temporary solution)
-	std::cout << "press y to exit";
-	char in;
-	while (1)
-	{
-		std::cin >> in;
+	//start window
+	window_update();
 
-		if (in == 'y')
-		{
-			exit(0);
-		}
-	}
+	//run loop on this process
+	proc_loop();
 
 	//default exit(should never be reached)
 	log(WARNING, "Loop exited without ending process...");

@@ -1,3 +1,7 @@
+/*
+* Credit for a lot of this code goes to https://github.com/TanukiSharp/SoftwareRasterizer/blob/master/RenderLibrary/renderlib.c
+*/
+
 #include "window.h"
 #include "logger.h"
 #include <Windows.h>
@@ -15,6 +19,10 @@ static int _buf_width = -1;
 static int _buf_height = -1;
 static int _wnd_width = -1;
 static int _wnd_height = -1;
+
+static int _frames = -1;
+static FILETIME _start_frame_time = { 0 };
+static FILETIME _start_total_time = { 0 };
 
 static PIXEL* _buf = NULL;  //heap allocated array of uint32 for each pixel on screen to hold color value
 static BITMAPINFO _bmp_info;
@@ -148,4 +156,125 @@ int create_window(const char* name, int width, int height)
 
     //default return
     return 0;
+}
+
+/*
+* Sends paint message to window
+*/
+void window_update()
+{
+    MSG msg;
+
+    log(DEBUG, "Painting");
+    SendMessage(_handle, WM_PAINT, 0, 0);
+
+    while (PeekMessage(&msg, _handle, 0, 0, PM_REMOVE))
+    {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+}
+
+/*
+* Clear buffer to only black
+*/
+int window_clear()
+{
+    log(DEBUG, "clearing window");
+    if (_buf == NULL)
+    {
+        log(ERR, "buffer not allocated");
+        return 0;
+    }
+
+    memset(_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(PIXEL));
+
+    return 1;
+}
+
+/*
+* Frees window memory
+*/
+void window_remove()
+{
+    log(DEBUG, "freeing window");
+    ReleaseDC(_handle, _win_hDC);
+    DestroyWindow(_handle);
+    free(_buf);
+}
+
+/*
+* Sync window with rasterizer
+*/
+void window_sync_begin()
+{
+    log(DEBUG, "sync begin");
+    GetSystemTimePreciseAsFileTime(&_start_frame_time);
+
+    if (_start_total_time.dwHighDateTime == 0 && _start_total_time.dwLowDateTime == 0)
+        _start_total_time = _start_frame_time;
+}
+
+/*
+* Sleep window to sync to max fps
+*/
+void window_sleep(long long time)
+{
+    log(DEBUG, "sleeping window");
+    HANDLE timer;
+    LARGE_INTEGER ft;
+
+    ft.QuadPart = -(10 * time);
+
+    timer = CreateWaitableTimer(NULL, TRUE, NULL);
+    if (timer == 0)
+    {
+        printf("Call to CreateWaitableTimer failed.\n");
+        exit(1);
+    }
+
+    SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0);
+    WaitForSingleObject(timer, INFINITE);
+    CloseHandle(timer);
+}
+
+/*
+* End window sync
+*/
+void window_sync_end(int fps_cap)
+{
+    log(DEBUG, "sync end");
+
+    FILETIME ft;
+    ULARGE_INTEGER start_frame_time;
+    ULARGE_INTEGER current_frame_time;
+    ULARGE_INTEGER start_total_time;
+
+    GetSystemTimePreciseAsFileTime(&ft);
+
+    start_frame_time.LowPart = _start_frame_time.dwLowDateTime;
+    start_frame_time.HighPart = _start_frame_time.dwHighDateTime;
+
+    current_frame_time.LowPart = ft.dwLowDateTime;
+    current_frame_time.HighPart = ft.dwHighDateTime;
+
+    start_total_time.LowPart = _start_total_time.dwLowDateTime;
+    start_total_time.HighPart = _start_total_time.dwHighDateTime;
+
+    //check if capping fps
+    if (fps_cap != 0)
+        window_sleep((1000 * 1000 / fps_cap) - ((current_frame_time.QuadPart - start_frame_time.QuadPart) / 10));
+        
+
+    if (_frames < 0)
+        _frames = 1;
+    else
+        _frames++;
+
+    if (current_frame_time.QuadPart - start_total_time.QuadPart >= 10000000) //1 second
+    {
+        log(DEBUG, "fps: " + to_string(_frames));
+        _start_total_time = ft;
+        _frames = 0;
+    }
 }
