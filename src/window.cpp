@@ -11,6 +11,8 @@
 using namespace std;
 
 //global defs
+volatile bool g_alive = false;
+
 static HWND _handle;
 static HDC _win_hDC;
 static WNDCLASS _wnd_class;
@@ -36,8 +38,11 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     switch (uMsg)
     {
     case WM_DESTROY:
+    {
         PostQuitMessage(0);
-        return 0;
+        g_alive = false;
+    }
+    return 0;
 
     case WM_PAINT:
     {
@@ -152,9 +157,8 @@ int create_window(const char* name, int width, int height)
     ShowWindow(_handle, SW_SHOW);
     UpdateWindow(_handle);
 
-    return 0;
-
     //default return
+    g_alive = true;
     return 0;
 }
 
@@ -178,18 +182,18 @@ void window_update()
 /*
 * Clear buffer to only black
 */
-int window_clear()
+bool window_clear()
 {
     log(DEBUG, "clearing window");
     if (_buf == NULL)
     {
         log(ERR, "buffer not allocated");
-        return 0;
+        return false;
     }
 
     memset(_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(PIXEL));
 
-    return 1;
+    return true;
 }
 
 /*
@@ -241,7 +245,7 @@ void window_sleep(long long time)
 /*
 * End window sync
 */
-void window_sync_end(int fps_cap)
+void window_sync_end(int fps_cap, bool print_fps)
 {
     log(DEBUG, "sync end");
 
@@ -265,6 +269,8 @@ void window_sync_end(int fps_cap)
     if (fps_cap != 0)
         window_sleep((1000 * 1000 / fps_cap) - ((current_frame_time.QuadPart - start_frame_time.QuadPart) / 10));
         
+    if (!print_fps)
+        return;
 
     if (_frames < 0)
         _frames = 1;
@@ -273,7 +279,7 @@ void window_sync_end(int fps_cap)
 
     if (current_frame_time.QuadPart - start_total_time.QuadPart >= 10000000) //1 second
     {
-        log(DEBUG, "fps: " + to_string(_frames));
+        printf("fps: %d", _frames);
         _start_total_time = ft;
         _frames = 0;
     }
