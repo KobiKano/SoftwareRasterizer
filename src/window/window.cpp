@@ -287,19 +287,19 @@ bool get_pixel(int x, int y, PIXEL* color)
     //make sure draw is locked
     if (!_draw_locked)
     {
-        log(WARNING, "cannot write if not locked");
+        log(ERR, "cannot write if not locked");
         return false;
     }
 
     //do operation
-    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
+    if (color == NULL)
     {
-        log(WARNING, "null pointer given");
+        log(ERR, "null pointer given");
         return false;
     }
     if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
     {
-        log(WARNING, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
+        log(ERR, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
         return false;
     }
 
@@ -320,12 +320,7 @@ bool set_pixel(int x, int y, PIXEL color)
     //do operation
     if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
     {
-        log(ERR, "null pointer given");
-        return false;
-    }
-    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
-    {
-        log(WARNING, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
+        log(DEBUG, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
         return false;
     }
 
@@ -350,18 +345,18 @@ static bool check_bound(int x, int y)
     //check over right bound
     if (x > _buf_width)
     {
-        log(WARNING, "Over right bound, ending line draw");
+        log(DEBUG, "Over right bound, ending line draw");
         return false;
     }
     //check both y bounds
     else if (y > _buf_height || y < 0)
     {
-        log(WARNING, "Over bottom or top bound, ending line draw");
+        log(DEBUG, "Over bottom or top bound, ending line draw");
         return false;
     }
 
     //defualt return (still over left bound, but can end up on screen still)
-    log(WARNING, "Over left bound, continuing...");
+    log(DEBUG, "Over left bound, continuing...");
     return true;
 }
 
@@ -371,14 +366,14 @@ static bool check_bound(int x, int y)
 void draw_line(int x0, int y0, int x1, int y1, PIXEL color)
 {
     //quick on time check on bounds to make sure line is actually fully in bounds
-    if ((x0 < 0 && (x1 < x0)) || (x1 < 0 && (x0 < x1)) || (x0 > _buf_width && (x0 < x1)) || (x1 > _buf_width && (x1 < x0)))
+    if ((x0 < 0 && (x1 <= x0)) || (x1 < 0 && (x0 <= x1)) || (x0 > _buf_width && (x0 <= x1)) || (x1 > _buf_width && (x1 <= x0)))
     {
-        log(WARNING, "Line completely out of bounds, skipping");
+        log(DEBUG, "Line completely out of bounds, skipping");
         return;
     }
-    if ((y0 < 0 && (y1 < y0)) || (y1 < 0 && (y0 < y1)) || (y0 > _buf_height && (y0 < y1)) || (y1 > _buf_height && (y1 < y0)))
+    if ((y0 < 0 && (y1 <= y0)) || (y1 < 0 && (y0 <= y1)) || (y0 > _buf_height && (y0 <= y1)) || (y1 > _buf_height && (y1 <= y0)))
     {
-        log(WARNING, "Line completely out of bounds, skipping");
+        log(DEBUG, "Line completely out of bounds, skipping");
         return;
     }
 
