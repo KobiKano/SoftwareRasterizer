@@ -2,9 +2,9 @@
 #define UNICODE
 #endif 
 
-#include "window.h"
-#include "logger.h"
-#include "funcs.h"
+#include "window/window.h"
+#include "logger/logger.h"
+#include "rasterizer/funcs.h"
 #include <iostream>
 
 void main(int argc, char* argv[])

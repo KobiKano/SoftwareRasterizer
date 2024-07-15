@@ -3,18 +3,22 @@
 */
 
 #include "window.h"
-#include "logger.h"
+#include "../logger/logger.h"
 #include <Windows.h>
 #include <stdio.h>
 #include <string>
 #include <mutex>
+#include <math.h>
+#include <stdlib.h>
 
 using namespace std;
 
 //global defs
 volatile bool g_alive = false;
 volatile bool g_exit_error = false;
-static mutex _draw_lock;
+static mutex _buf_lk;
+
+static volatile bool _draw_locked = false;
 
 static HWND _handle;
 static HDC _win_hDC;
@@ -38,7 +42,7 @@ static bool resize(int width, int height)
     log(DEBUG, "resize");
 
     //aquire lock so buffer not modified or cleared while resizing
-    _draw_lock.lock();
+    _buf_lk.lock();
 
     //assume width and height are for buffer
     _buf_width = width;
@@ -49,7 +53,7 @@ static bool resize(int width, int height)
     if (tmp == NULL)
     {
         log(ERR, "Failed to heap allocate window buffer");
-        _draw_lock.unlock();
+        _buf_lk.unlock();
         return false;
     }
     _buf = (PIXEL*)tmp;
@@ -59,7 +63,7 @@ static bool resize(int width, int height)
     _bmp_info.bmiHeader.biWidth = width;
 
     //unlock and return success
-    _draw_lock.unlock();
+    _buf_lk.unlock();
     return true;
 }
 
@@ -81,12 +85,12 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_PAINT:
     {
         //aquire lock
-        _draw_lock.lock();
+        _buf_lk.lock();
         if (_buf == NULL)
         {
             log(ERR, "buffer not allocated");
             g_exit_error = true;
-            _draw_lock.unlock();
+            _buf_lk.unlock();
             SendMessage(_handle, WM_DESTROY, 0, 0);
             return 0;
         }
@@ -96,7 +100,7 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         StretchDIBits(_win_hDC, 0, 0, wsize.right, wsize.bottom, 0, 0, _buf_width, _buf_height, _buf, &_bmp_info, DIB_RGB_COLORS, SRCCOPY);
         ValidateRect(_handle, NULL);
         //release lock
-        _draw_lock.unlock();
+        _buf_lk.unlock();
     }
     return 0;
     case WM_SIZE:
@@ -228,13 +232,13 @@ void window_update()
 void window_clear()
 {
     //aquire lock to make sure resizing cannot occur during modification
-    _draw_lock.lock();
+    _buf_lk.lock();
     log(DEBUG, "clearing window");
     if (_buf == NULL)
     {
         log(ERR, "buffer not allocated");
         g_exit_error = true;
-        _draw_lock.unlock();
+        _buf_lk.unlock();
         SendMessage(_handle, WM_DESTROY, 0, 0);
         return;
     }
@@ -242,7 +246,191 @@ void window_clear()
     memset(_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(PIXEL));
 
     //unlock and return succeess
-    _draw_lock.unlock();
+    _buf_lk.unlock();
+}
+
+/*
+* Locks buffer from being changed while getting next frame
+* It is up to user to use properly
+*/
+void draw_lock()
+{
+    log(DEBUG, "locking for draw");
+    if (!_draw_locked)
+    {
+        _buf_lk.lock();
+        _draw_locked = true;
+    }
+    else
+        log(WARNING, "attempted to lock locked draw lock");
+}
+void draw_unlock()
+{
+    log(DEBUG, "unlocking for draw");
+    if (_draw_locked)
+    {
+        _buf_lk.unlock();
+        _draw_locked = false;
+    }
+    else
+        log(WARNING, "attempted to unlock untaken draw lock");
+}
+
+/*
+* Get and draw pixel
+* buf lock should be taken while drawing
+*/
+bool get_pixel(int x, int y, PIXEL* color)
+{
+    log(DEBUG, "getting pixel");
+
+    //make sure draw is locked
+    if (!_draw_locked)
+    {
+        log(WARNING, "cannot write if not locked");
+        return false;
+    }
+
+    //do operation
+    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
+    {
+        log(WARNING, "null pointer given");
+        return false;
+    }
+    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
+    {
+        log(WARNING, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
+        return false;
+    }
+
+    *color = _buf[y * _buf_width + x];
+    return true;
+}
+bool set_pixel(int x, int y, PIXEL color)
+{
+    log(DEBUG, "writing pixel");
+
+    //make sure draw is locked
+    if (!_draw_locked)
+    {
+        log(ERR, "cannot write if not locked");
+        return false;
+    }
+
+    //do operation
+    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
+    {
+        log(ERR, "null pointer given");
+        return false;
+    }
+    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
+    {
+        log(WARNING, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
+        return false;
+    }
+
+    _buf[y * _buf_width + x] = color;
+    return true;
+}
+
+//gets dims of window
+void get_dims(int* width, int* height)
+{
+    _buf_lk.lock();
+    *width = _buf_width;
+    *height = _buf_height;
+    _buf_lk.unlock();
+}
+
+/*
+* Private function to check if all future points of a line being drawn will be outside bounds
+*/
+static bool check_bound(int x, int y)
+{
+    //check over right bound
+    if (x > _buf_width)
+    {
+        log(WARNING, "Over right bound, ending line draw");
+        return false;
+    }
+    //check both y bounds
+    else if (y > _buf_height || y < 0)
+    {
+        log(WARNING, "Over bottom or top bound, ending line draw");
+        return false;
+    }
+
+    //defualt return (still over left bound, but can end up on screen still)
+    log(WARNING, "Over left bound, continuing...");
+    return true;
+}
+
+/*
+* Draws a line into buffer from point0 to point1
+*/
+void draw_line(int x0, int y0, int x1, int y1, PIXEL color)
+{
+    //quick on time check on bounds to make sure line is actually fully in bounds
+    if ((x0 < 0 && (x1 < x0)) || (x1 < 0 && (x0 < x1)) || (x0 > _buf_width && (x0 < x1)) || (x1 > _buf_width && (x1 < x0)))
+    {
+        log(WARNING, "Line completely out of bounds, skipping");
+        return;
+    }
+    if ((y0 < 0 && (y1 < y0)) || (y1 < 0 && (y0 < y1)) || (y0 > _buf_height && (y0 < y1)) || (y1 > _buf_height && (y1 < y0)))
+    {
+        log(WARNING, "Line completely out of bounds, skipping");
+        return;
+    }
+
+    //check steepness (if delta-y is greater than delta-x)
+    bool steep = false;
+    if (abs(x0 - x1) < abs(y0 - y1))
+    {
+        //transpose x and y
+        swap(x0, y0);
+        swap(x1, y1);
+        steep = true;
+    }
+
+    //ensure iterateing from left to right
+    if (x0 > x1)
+    {
+        swap(x0, x1);
+        swap(y0, y1);
+    }
+
+    //calculate gradients
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+    int derror2 = abs(dy) * 2;
+    int error2 = 0;
+    int y = y0;
+
+    //draw line
+    for (int x = x0; x <= x1; x++)
+    {
+        //untranspose if needed and make sure not doing uneeded draws outside of bounds
+        if (steep)
+        {
+            if (!set_pixel(y, x, color) && !check_bound(y, x))
+                return;
+        }
+        else
+        {
+            if (!set_pixel(x, y, color) && !check_bound(x, y))
+                return;
+        }
+
+        //calculate next y step using error
+        error2 += derror2;
+        if (error2 > dx)
+        {
+            y += ((y1 > y0) ? 1 : -1);
+            error2 -= dx * 2;
+        }
+    }
+
+
 }
 
 /*

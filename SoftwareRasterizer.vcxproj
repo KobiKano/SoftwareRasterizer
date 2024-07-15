@@ -19,15 +19,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\logger.cpp" />
+    <ClCompile Include="src\logger\logger.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\proc.cpp" />
-    <ClCompile Include="src\window.cpp" />
+    <ClCompile Include="src\rasterizer\proc.cpp" />
+    <ClCompile Include="src\window\window.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\logger.h" />
-    <ClInclude Include="src\funcs.h" />
-    <ClInclude Include="src\window.h" />
+    <ClInclude Include="src\logger\logger.h" />
+    <ClInclude Include="src\rasterizer\funcs.h" />
+    <ClInclude Include="src\window\window.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

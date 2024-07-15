@@ -1,6 +1,6 @@
 #include "funcs.h"
-#include "logger.h"
-#include "window.h"
+#include "../logger/logger.h"
+#include "../window/window.h"
 #include <iostream>
 
 extern volatile bool g_alive;
@@ -28,6 +28,18 @@ void proc_loop()
 		window_clear();
 
 		//TODO: ADD DRAW FUNCTIONS
+		draw_lock();
+
+		//test draw triangles
+		draw_line(30, 30, 30, 90, RED);
+		draw_line(30, 90, 90, 90, BLUE);
+		draw_line(90, 90, 30, 30, GREEN);
+
+		draw_line(120, 120, 180, 120, RED);
+		draw_line(180, 120, 180, 180, BLUE);
+		draw_line(180, 180, 120, 120, GREEN);
+
+		draw_unlock();
 
 		//send draw call to window
 		window_update();
