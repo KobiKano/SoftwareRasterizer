@@ -39,7 +39,7 @@ static BITMAPINFO _bmp_info;
 */
 static bool resize(int width, int height)
 {
-    log(DEBUG, "resize");
+    log(DEBUG1, "resize");
 
     //aquire lock so buffer not modified or cleared while resizing
     _buf_lk.lock();
@@ -150,21 +150,21 @@ int create_window(const char* name, int width, int height)
     //get top left of desired window
     x = (GetSystemMetrics(SM_CXSCREEN) - width) >> 1;
     y = (GetSystemMetrics(SM_CYSCREEN) - height) >> 1;
-    log(DEBUG, "x: " + to_string(x) + "|y: " + to_string(y));
+    log(DEBUG1, "x: " + to_string(x) + "|y: " + to_string(y));
 
     //set rect buf
     rect.left = x;
     rect.top = y;
     rect.right = x + width;
     rect.bottom = y + height;
-    log(DEBUG, "right: " + to_string(rect.right) + "|bottom: " + to_string(rect.bottom));
+    log(DEBUG1, "right: " + to_string(rect.right) + "|bottom: " + to_string(rect.bottom));
 
     //calculate actual window size
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW | WS_VISIBLE, false);
 
     _buf_width = rect.right - rect.left;
     _buf_height = rect.bottom - rect.top;
-    log(DEBUG, "width: " + to_string(_buf_width) + "|height: " + to_string(_buf_height));
+    log(DEBUG1, "width: " + to_string(_buf_width) + "|height: " + to_string(_buf_height));
 
     //create window handle
     _handle = CreateWindowEx(
@@ -216,7 +216,7 @@ void window_update()
 {
     MSG msg;
 
-    log(DEBUG, "Painting");
+    log(DEBUG1, "Painting");
     SendMessage(_handle, WM_PAINT, 0, 0);
 
     while (PeekMessage(&msg, _handle, 0, 0, PM_REMOVE))
@@ -233,7 +233,7 @@ void window_clear()
 {
     //aquire lock to make sure resizing cannot occur during modification
     _buf_lk.lock();
-    log(DEBUG, "clearing window");
+    log(DEBUG1, "clearing window");
     if (_buf == NULL)
     {
         log(ERR, "buffer not allocated");
@@ -255,7 +255,7 @@ void window_clear()
 */
 void draw_lock()
 {
-    log(DEBUG, "locking for draw");
+    log(DEBUG1, "locking for draw");
     if (!_draw_locked)
     {
         _buf_lk.lock();
@@ -266,7 +266,7 @@ void draw_lock()
 }
 void draw_unlock()
 {
-    log(DEBUG, "unlocking for draw");
+    log(DEBUG1, "unlocking for draw");
     if (_draw_locked)
     {
         _buf_lk.unlock();
@@ -282,7 +282,7 @@ void draw_unlock()
 */
 bool get_pixel(int x, int y, PIXEL* color)
 {
-    log(DEBUG, "getting pixel");
+    log(DEBUG1, "getting pixel");
 
     //make sure draw is locked
     if (!_draw_locked)
@@ -308,7 +308,7 @@ bool get_pixel(int x, int y, PIXEL* color)
 }
 bool set_pixel(int x, int y, PIXEL color)
 {
-    log(DEBUG, "writing pixel");
+    log(DEBUG1, "writing pixel");
 
     //make sure draw is locked
     if (!_draw_locked)
@@ -320,7 +320,7 @@ bool set_pixel(int x, int y, PIXEL color)
     //do operation
     if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
     {
-        log(DEBUG, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
+        log(DEBUG1, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
         return false;
     }
 
@@ -345,18 +345,18 @@ static bool check_bound(int x, int y)
     //check over right bound
     if (x > _buf_width)
     {
-        log(DEBUG, "Over right bound, ending line draw");
+        log(DEBUG1, "Over right bound, ending line draw");
         return false;
     }
     //check both y bounds
     else if (y > _buf_height || y < 0)
     {
-        log(DEBUG, "Over bottom or top bound, ending line draw");
+        log(DEBUG1, "Over bottom or top bound, ending line draw");
         return false;
     }
 
     //defualt return (still over left bound, but can end up on screen still)
-    log(DEBUG, "Over left bound, continuing...");
+    log(DEBUG1, "Over left bound, continuing...");
     return true;
 }
 
@@ -368,12 +368,12 @@ void draw_line(int x0, int y0, int x1, int y1, PIXEL color)
     //quick on time check on bounds to make sure line is actually fully in bounds
     if ((x0 < 0 && (x1 <= x0)) || (x1 < 0 && (x0 <= x1)) || (x0 > _buf_width && (x0 <= x1)) || (x1 > _buf_width && (x1 <= x0)))
     {
-        log(DEBUG, "Line completely out of bounds, skipping");
+        log(DEBUG1, "Line completely out of bounds, skipping");
         return;
     }
     if ((y0 < 0 && (y1 <= y0)) || (y1 < 0 && (y0 <= y1)) || (y0 > _buf_height && (y0 <= y1)) || (y1 > _buf_height && (y1 <= y0)))
     {
-        log(DEBUG, "Line completely out of bounds, skipping");
+        log(DEBUG1, "Line completely out of bounds, skipping");
         return;
     }
 
@@ -433,7 +433,7 @@ void draw_line(int x0, int y0, int x1, int y1, PIXEL color)
 */
 void window_remove()
 {
-    log(DEBUG, "freeing window");
+    log(DEBUG1, "freeing window");
     ReleaseDC(_handle, _win_hDC);
     DestroyWindow(_handle);
     free(_buf);
@@ -444,7 +444,7 @@ void window_remove()
 */
 void window_sync_begin()
 {
-    log(DEBUG, "sync begin");
+    log(DEBUG1, "sync begin");
     GetSystemTimePreciseAsFileTime(&_start_frame_time);
 
     if (_start_total_time.dwHighDateTime == 0 && _start_total_time.dwLowDateTime == 0)
@@ -456,7 +456,7 @@ void window_sync_begin()
 */
 static void window_sleep(long long time)
 {
-    log(DEBUG, "sleeping window");
+    log(DEBUG1, "sleeping window");
     HANDLE timer;
     LARGE_INTEGER ft;
 
@@ -479,7 +479,7 @@ static void window_sleep(long long time)
 */
 void window_sync_end(int fps_cap, bool print_fps)
 {
-    log(DEBUG, "sync end");
+    log(DEBUG1, "sync end");
 
     FILETIME ft;
     ULARGE_INTEGER start_frame_time;

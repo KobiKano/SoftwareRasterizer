@@ -21,13 +21,21 @@
   <ItemGroup>
     <ClCompile Include="src\logger\logger.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\rasterizer\model.cpp" />
     <ClCompile Include="src\rasterizer\proc.cpp" />
     <ClCompile Include="src\window\window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\logger\logger.h" />
     <ClInclude Include="src\rasterizer\funcs.h" />
+    <ClInclude Include="src\rasterizer\model.h" />
     <ClInclude Include="src\window\window.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="src\Models\cube.obj">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </Text>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>

@@ -19,8 +19,11 @@ void log(LEVEL level, std::string msg)
 	//else print desired statement
 	switch (level)
 	{
-	case DEBUG:
-		fprintf(stdout, "___DEBUG___: %s\n", msg.c_str());
+	case DEBUG1:
+		fprintf(stdout, "___DEBUG1___: %s\n", msg.c_str());
+		return;
+	case DEBUG2:
+		fprintf(stdout, "___DEBUG2___: %s\n", msg.c_str());
 		return;
 	case WARNING:
 		fprintf(stdout, "___WARNING___: %s\n", msg.c_str());

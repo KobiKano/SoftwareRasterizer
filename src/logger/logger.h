@@ -2,9 +2,10 @@
 #include <string>
 
 typedef enum level {
-	DEBUG = 0,
-	WARNING = 1,
-	ERR = 2
+	DEBUG1 = 0,
+	DEBUG2 = 1,
+	WARNING = 2,
+	ERR = 3
 } LEVEL;
 
 void logger_set_level(LEVEL level);
