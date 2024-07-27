@@ -6,6 +6,9 @@
 extern volatile bool g_alive;
 extern volatile bool g_exit_error;
 
+/**
+* Draw loop for window
+*/
 void proc_loop()
 {
 	//get the model to show
@@ -31,12 +34,13 @@ void proc_loop()
 		//clear screen
 		window_clear();
 
-		//TODO: ADD DRAW FUNCTIONS
+		//lock the screen
 		draw_lock();
 
-		//test draw triangles
-		
+		//draw model
+		model.get()->draw();
 
+		//unlock the screen
 		draw_unlock();
 
 		//send draw call to window

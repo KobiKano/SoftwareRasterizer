@@ -6,6 +6,13 @@
 
 //typedefs
 typedef uint32_t PIXEL;
+typedef enum PIX_RET
+{
+	SUCCESS,
+	FAIL,
+	BOUNDS,
+	DEPTH
+};
 
 //funtion defs
 //window.cpp
@@ -18,12 +25,12 @@ void window_update();
 void window_clear();
 
 //buffer modification
-void get_dims(int* width, int* height);
-bool get_pixel(int x, int y, PIXEL* color);
-bool set_pixel(int x, int y, PIXEL color);
+void get_dims(int &width, int &height);
+PIX_RET get_pixel(int x, int y, PIXEL& color, float& depth);
+PIX_RET set_pixel(int x, int y, PIXEL color, float depth);
 void draw_lock();
 void draw_unlock();
-void draw_line(int x0, int y0, int x1, int y1, PIXEL color);
+void draw_line(int x0, int y0, float z0, int x1, int y1, float z1, PIXEL color);
 
 //window sync
 void window_sync_begin();

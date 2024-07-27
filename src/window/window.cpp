@@ -32,6 +32,7 @@ static FILETIME _start_frame_time = { 0 };
 static FILETIME _start_total_time = { 0 };
 
 static PIXEL* _buf = NULL;  //heap allocated array of uint32 for each pixel on screen to hold color value
+static float* _z_buf = NULL;  //z buffer
 static BITMAPINFO _bmp_info;
 
 /*
@@ -49,14 +50,17 @@ static bool resize(int width, int height)
     _buf_height = height;
 
     //reallocate buffer
-    void* tmp = realloc((void*)_buf, (size_t)_buf_height * (size_t)_buf_width * sizeof(PIXEL));
-    if (tmp == NULL)
+    free(_buf);
+    free(_z_buf);
+    _buf = (PIXEL*)calloc((size_t)_buf_height * (size_t)_buf_width, sizeof(PIXEL));
+    _z_buf = (float*)malloc((size_t)_buf_height * (size_t)_buf_width * sizeof(float));
+    if (_buf == NULL || _z_buf == NULL)
     {
         log(ERR, "Failed to heap allocate window buffer");
         _buf_lk.unlock();
         return false;
     }
-    _buf = (PIXEL*)tmp;
+    memset((void*)_z_buf, 1.0f, (size_t)_buf_height * (size_t)_buf_width * sizeof(float));
 
     //modify bitmap
     _bmp_info.bmiHeader.biHeight = -height;
@@ -184,12 +188,14 @@ int create_window(const char* name, int width, int height)
     }
 
     //allocate space for client area buffer
-    _buf = (PIXEL*)malloc((size_t)_buf_height * (size_t)_buf_width * sizeof(PIXEL));
-    if (_buf == NULL)
+    _buf = (PIXEL*)calloc((size_t)_buf_height * (size_t)_buf_width, sizeof(PIXEL));
+    _z_buf = (float*)malloc((size_t)_buf_height * (size_t)_buf_width * sizeof(float));
+    if (_buf == NULL || _z_buf == NULL)
     {
         log(ERR, "Failed to heap allocate window buffer");
         return 1;
     }
+    memset((void*)_z_buf, 1.0f, (size_t)_buf_height * (size_t)_buf_width * sizeof(float));
 
     //allocate bitmap for buffer
     memset(&_bmp_info, 0, sizeof(BITMAPINFO));
@@ -234,7 +240,7 @@ void window_clear()
     //aquire lock to make sure resizing cannot occur during modification
     _buf_lk.lock();
     log(DEBUG1, "clearing window");
-    if (_buf == NULL)
+    if (_buf == NULL || _z_buf == NULL)
     {
         log(ERR, "buffer not allocated");
         g_exit_error = true;
@@ -243,7 +249,8 @@ void window_clear()
         return;
     }
 
-    memset(_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(PIXEL));
+    memset((void*)_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(PIXEL));
+    memset((void*)_z_buf, 1.0f, (size_t)_buf_height * (size_t)_buf_width * sizeof(float));
 
     //unlock and return succeess
     _buf_lk.unlock();
@@ -280,7 +287,7 @@ void draw_unlock()
 * Get and draw pixel
 * buf lock should be taken while drawing
 */
-bool get_pixel(int x, int y, PIXEL* color)
+PIX_RET get_pixel(int x, int y, PIXEL& color, float& depth)
 {
     log(DEBUG1, "getting pixel");
 
@@ -288,53 +295,60 @@ bool get_pixel(int x, int y, PIXEL* color)
     if (!_draw_locked)
     {
         log(ERR, "cannot write if not locked");
-        return false;
+        return FAIL;
     }
 
     //do operation
     if (color == NULL)
     {
         log(ERR, "null pointer given");
-        return false;
+        return FAIL;
     }
     if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
     {
         log(ERR, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
-        return false;
+        return BOUNDS;
     }
 
-    *color = _buf[y * _buf_width + x];
-    return true;
+    color = _buf[y * _buf_width + x];
+    depth = _z_buf[y * _buf_width + x];
+    return SUCCESS;
 }
-bool set_pixel(int x, int y, PIXEL color)
+PIX_RET set_pixel(int x, int y, PIXEL color, float depth)
 {
     log(DEBUG1, "writing pixel");
+
+    //make sure bounds are valid
+    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
+    {
+        log(DEBUG1, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
+        return BOUNDS;
+    }
+
+    //immediately check if depth is valid
+    if (depth > _z_buf[y * _buf_width + x])
+    {
+        return DEPTH;
+    }
 
     //make sure draw is locked
     if (!_draw_locked)
     {
         log(ERR, "cannot write if not locked");
-        return false;
+        return FAIL;
     }
 
     //do operation
-    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
-    {
-        log(DEBUG1, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
-        return false;
-    }
-
     _buf[y * _buf_width + x] = color;
-    return true;
+    _z_buf[y * _buf_width + x] = depth;
+    return SUCCESS;
 }
 
-//gets dims of window
-void get_dims(int* width, int* height)
+//gets dims of window, possible race condition if not draw locked before call
+void get_dims(int &width, int &height)
 {
-    _buf_lk.lock();
-    *width = _buf_width;
-    *height = _buf_height;
-    _buf_lk.unlock();
+    width = _buf_width;
+    height = _buf_height;
 }
 
 /*
@@ -363,7 +377,7 @@ static bool check_bound(int x, int y)
 /*
 * Draws a line into buffer from point0 to point1
 */
-void draw_line(int x0, int y0, int x1, int y1, PIXEL color)
+void draw_line(int x0, int y0, float z0, int x1, int y1, float z1, PIXEL color)
 {
     //quick on time check on bounds to make sure line is actually fully in bounds
     if ((x0 < 0 && (x1 <= x0)) || (x1 < 0 && (x0 <= x1)) || (x0 > _buf_width && (x0 <= x1)) || (x1 > _buf_width && (x1 <= x0)))
@@ -392,14 +406,17 @@ void draw_line(int x0, int y0, int x1, int y1, PIXEL color)
     {
         swap(x0, x1);
         swap(y0, y1);
+        swap(z0, z1);
     }
 
     //calculate gradients
     int dx = x1 - x0;
     int dy = y1 - y0;
-    int derror2 = abs(dy) * 2;
-    int error2 = 0;
+    float dz = z1 - z0;
+    int dyerror2 = abs(dy) * 2;
+    int yerror2 = 0;
     int y = y0;
+    float z = z0;
 
     //draw line
     for (int x = x0; x <= x1; x++)
@@ -407,22 +424,26 @@ void draw_line(int x0, int y0, int x1, int y1, PIXEL color)
         //untranspose if needed and make sure not doing uneeded draws outside of bounds
         if (steep)
         {
-            if (!set_pixel(y, x, color) && !check_bound(y, x))
+            if (set_pixel(y, x, color, z) == BOUNDS && !check_bound(y, x))
                 return;
         }
         else
         {
-            if (!set_pixel(x, y, color) && !check_bound(x, y))
+            if (set_pixel(x, y, color, z) == BOUNDS && !check_bound(x, y))
                 return;
         }
 
         //calculate next y step using error
-        error2 += derror2;
-        if (error2 > dx)
+        yerror2 += dyerror2;
+        if (yerror2 > dx)
         {
-            y += ((y1 > y0) ? 1 : -1);
-            error2 -= dx * 2;
+            y += (y1 > y0) ? 1 : -1;
+            yerror2 -= dx * 2;
         }
+
+        //calculate next z step
+        if (dz != 0)
+            z += (z1 > z0) ? -((float)dx) / dz : ((float)dx) / dz;
     }
 
 

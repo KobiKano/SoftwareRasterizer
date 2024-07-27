@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="src\logger\logger.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\rasterizer\geom.cpp" />
     <ClCompile Include="src\rasterizer\model.cpp" />
     <ClCompile Include="src\rasterizer\proc.cpp" />
     <ClCompile Include="src\window\window.cpp" />
