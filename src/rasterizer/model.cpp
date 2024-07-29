@@ -1,4 +1,5 @@
 #include "model.h"
+#include "funcs.h"
 #include "../logger/logger.h"
 #include "../window/window.h"
 #include <iostream>
@@ -76,17 +77,6 @@ Model::Model(const char* filename)
 			textures.push_back(v);
 			log(DEBUG2, "\n" + v.to_string());
 		}
-		else if (!t.compare("vn"))
-		{
-			//vertex normal
-			Vec3f v;
-			for (int i = 0; i < 3; i++)
-			{
-				s >> v.raw[i];
-			}
-			normals.push_back(v);
-			log(DEBUG2, "\n" + v.to_string());
-		}
 		else if (!t.compare("f"))
 		{
 			//faces
@@ -149,6 +139,19 @@ Model::Model(const char* filename)
 	//do post processing pass on faces to split simple polygons into triangles
 	this->process_faces();
 
+	//vertex and face normals in model
+	this->add_normals();
+
+	//normalize all normals to 1
+	for (int i = 0; i < vert_normals.size(); i++)
+	{
+		vert_normals[i] = vert_normals[i].norm();
+	}
+	for (int i = 0; i < face_normals.size(); i++)
+	{
+		face_normals[i] = face_normals[i].norm();
+	}
+
 	log(DEBUG1, "model creation complete");
 }
 
@@ -162,36 +165,48 @@ Model::~Model()
 }
 
 /**
-* Draw this model onto the screen
+* Getter for vertices
+* @return vertices of model
 */
-void Model::draw()
+std::vector<Vec3f>& Model::get_vertices()
 {
-	//get screen dims
-	int width, height;
-	get_dims(width, height);
-
-	//iterate through all faces
-	for (int i = 0; i < faces.size(); i++)
-	{
-
-	}
+	return vertices;
 }
-
+/**
+* Getter for texture uv coords
+* @return texture uv coords
+*/
+std::vector<Vec3f>& Model::get_textures()
+{
+	return textures;
+}
+/**
+* Getter for vertex normals
+* @return normals of model
+*/
+std::vector<Vec3f>& Model::get_vert_normals()
+{
+	return vert_normals;
+}
+/**
+* Getter for face normals
+* @return normals of model
+*/
+std::vector<Vec3f>& Model::get_face_normals()
+{
+	return face_normals;
+}
+/**
+* Getter for faces
+* @return faces of model
+*/
+std::vector<std::vector<Vec3i>>& Model::get_faces()
+{
+	return faces;
+}
 /***********************************************************************************************************************
 * Private functions
 ***********************************************************************************************************************/
-
-/**
-* Translate vertex coordinate in [0, 1] to screen coordinates
-* @param in: vertex coordinates
-* @param width: width of screen
-* @param height: height of screen
-*/
-inline Vec3f Model::world_to_screen(Vec3f in, int width, int height)
-{
-	//(0, 0) is the center of the screen
-	return Vec3f(in.x * width, in.y * height, in.z);
-}
 
 /**
 * Normalize all vertices to [0, 1]
@@ -205,6 +220,35 @@ void Model::normalize_verts(float largest, float smallest)
 	{
 		vertices[i] = (vertices[i] - smallest)/(largest - smallest);
 		log(DEBUG1, "\n" + vertices[i].to_string());
+	}
+}
+
+/**
+* Add normal vectors to model to allow for lighting
+*/
+void Model::add_normals()
+{
+	log(DEBUG1, "adding normals");
+
+	vert_normals.resize(vertices.size());
+	face_normals.resize(faces.size());
+	//set all values of vert_normals to zero
+	std::fill(vert_normals.begin(), vert_normals.end(), 0.0f);
+
+	for (int i = 0; i < faces.size(); i++)
+	{
+		//each normal index is the same as the vertex index
+		//calc face normal
+		Vec3f AB = vertices[faces[i][1].i_vert] - vertices[faces[i][0].i_vert];
+		Vec3f AC = vertices[faces[i][2].i_vert] - vertices[faces[i][0].i_vert];
+		face_normals[i] = AB.cross(AC);
+
+		//want to add the normal value of the face to each vertex normal to find total normal
+		for (int j = 0; j < faces[i].size(); j++)
+		{
+			faces[i][j].i_norm = faces[i][j].i_vert;
+			vert_normals[faces[i][j].i_norm] = vert_normals[faces[i][j].i_norm] + face_normals[i];
+		}
 	}
 }
 

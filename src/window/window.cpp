@@ -35,6 +35,15 @@ static PIXEL* _buf = NULL;  //heap allocated array of uint32 for each pixel on s
 static float* _z_buf = NULL;  //z buffer
 static BITMAPINFO _bmp_info;
 
+/*************************************************************************************
+* Getters for private vals to be used in draw.cpp (avoiding file clutter)
+*************************************************************************************/
+inline bool get_draw_locked() { return _draw_locked; }
+inline int get_buf_width() { return _buf_width; }
+inline int get_buf_height() { return _buf_height; }
+inline PIXEL* get_buf() { return _buf; }
+inline float* get_z_buf() { return _z_buf; }
+
 /*
 * Resize operations
 */
@@ -281,172 +290,6 @@ void draw_unlock()
     }
     else
         log(WARNING, "attempted to unlock untaken draw lock");
-}
-
-/*
-* Get and draw pixel
-* buf lock should be taken while drawing
-*/
-PIX_RET get_pixel(int x, int y, PIXEL& color, float& depth)
-{
-    log(DEBUG1, "getting pixel");
-
-    //make sure draw is locked
-    if (!_draw_locked)
-    {
-        log(ERR, "cannot write if not locked");
-        return FAIL;
-    }
-
-    //do operation
-    if (color == NULL)
-    {
-        log(ERR, "null pointer given");
-        return FAIL;
-    }
-    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
-    {
-        log(ERR, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
-        return BOUNDS;
-    }
-
-    color = _buf[y * _buf_width + x];
-    depth = _z_buf[y * _buf_width + x];
-    return SUCCESS;
-}
-PIX_RET set_pixel(int x, int y, PIXEL color, float depth)
-{
-    log(DEBUG1, "writing pixel");
-
-    //make sure bounds are valid
-    if (x < 0 || y < 0 || x >= _buf_width || y >= _buf_height)
-    {
-        log(DEBUG1, "out of bounds x: " + to_string(x) + "|y: " + to_string(y));
-        return BOUNDS;
-    }
-
-    //immediately check if depth is valid
-    if (depth > _z_buf[y * _buf_width + x])
-    {
-        return DEPTH;
-    }
-
-    //make sure draw is locked
-    if (!_draw_locked)
-    {
-        log(ERR, "cannot write if not locked");
-        return FAIL;
-    }
-
-    //do operation
-    _buf[y * _buf_width + x] = color;
-    _z_buf[y * _buf_width + x] = depth;
-    return SUCCESS;
-}
-
-//gets dims of window, possible race condition if not draw locked before call
-void get_dims(int &width, int &height)
-{
-    width = _buf_width;
-    height = _buf_height;
-}
-
-/*
-* Private function to check if all future points of a line being drawn will be outside bounds
-*/
-static bool check_bound(int x, int y)
-{
-    //check over right bound
-    if (x > _buf_width)
-    {
-        log(DEBUG1, "Over right bound, ending line draw");
-        return false;
-    }
-    //check both y bounds
-    else if (y > _buf_height || y < 0)
-    {
-        log(DEBUG1, "Over bottom or top bound, ending line draw");
-        return false;
-    }
-
-    //defualt return (still over left bound, but can end up on screen still)
-    log(DEBUG1, "Over left bound, continuing...");
-    return true;
-}
-
-/*
-* Draws a line into buffer from point0 to point1
-*/
-void draw_line(int x0, int y0, float z0, int x1, int y1, float z1, PIXEL color)
-{
-    //quick on time check on bounds to make sure line is actually fully in bounds
-    if ((x0 < 0 && (x1 <= x0)) || (x1 < 0 && (x0 <= x1)) || (x0 > _buf_width && (x0 <= x1)) || (x1 > _buf_width && (x1 <= x0)))
-    {
-        log(DEBUG1, "Line completely out of bounds, skipping");
-        return;
-    }
-    if ((y0 < 0 && (y1 <= y0)) || (y1 < 0 && (y0 <= y1)) || (y0 > _buf_height && (y0 <= y1)) || (y1 > _buf_height && (y1 <= y0)))
-    {
-        log(DEBUG1, "Line completely out of bounds, skipping");
-        return;
-    }
-
-    //check steepness (if delta-y is greater than delta-x)
-    bool steep = false;
-    if (abs(x0 - x1) < abs(y0 - y1))
-    {
-        //transpose x and y
-        swap(x0, y0);
-        swap(x1, y1);
-        steep = true;
-    }
-
-    //ensure iterateing from left to right
-    if (x0 > x1)
-    {
-        swap(x0, x1);
-        swap(y0, y1);
-        swap(z0, z1);
-    }
-
-    //calculate gradients
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-    float dz = z1 - z0;
-    int dyerror2 = abs(dy) * 2;
-    int yerror2 = 0;
-    int y = y0;
-    float z = z0;
-
-    //draw line
-    for (int x = x0; x <= x1; x++)
-    {
-        //untranspose if needed and make sure not doing uneeded draws outside of bounds
-        if (steep)
-        {
-            if (set_pixel(y, x, color, z) == BOUNDS && !check_bound(y, x))
-                return;
-        }
-        else
-        {
-            if (set_pixel(x, y, color, z) == BOUNDS && !check_bound(x, y))
-                return;
-        }
-
-        //calculate next y step using error
-        yerror2 += dyerror2;
-        if (yerror2 > dx)
-        {
-            y += (y1 > y0) ? 1 : -1;
-            yerror2 -= dx * 2;
-        }
-
-        //calculate next z step
-        if (dz != 0)
-            z += (z1 > z0) ? -((float)dx) / dz : ((float)dx) / dz;
-    }
-
-
 }
 
 /*

@@ -16,4 +16,4 @@ void proc_loop();
 std::unique_ptr<Model> get_model();
 
 //geom.cpp
-void draw_triangle(Triangle t, PIXEL color);
+void draw(Model &m);

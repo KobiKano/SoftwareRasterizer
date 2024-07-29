@@ -21,15 +21,19 @@
   <ItemGroup>
     <ClCompile Include="src\logger\logger.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\rasterizer\geom.cpp" />
+    <ClCompile Include="src\rasterizer\camera.cpp" />
+    <ClCompile Include="src\rasterizer\scene.cpp" />
     <ClCompile Include="src\rasterizer\model.cpp" />
     <ClCompile Include="src\rasterizer\proc.cpp" />
+    <ClCompile Include="src\window\draw.cpp" />
     <ClCompile Include="src\window\window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\logger\logger.h" />
     <ClInclude Include="src\rasterizer\funcs.h" />
+    <ClInclude Include="src\rasterizer\geom.h" />
     <ClInclude Include="src\rasterizer\model.h" />
+    <ClInclude Include="src\rasterizer\render.h" />
     <ClInclude Include="src\window\window.h" />
   </ItemGroup>
   <ItemGroup>

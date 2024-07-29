@@ -1,4 +1,6 @@
 #include "funcs.h"
+#include "render.h"
+#include "geom.h"
 #include "../logger/logger.h"
 #include "../window/window.h"
 #include <iostream>
@@ -11,8 +13,14 @@ extern volatile bool g_exit_error;
 */
 void proc_loop()
 {
-	//get the model to show
-	std::unique_ptr<Model> model = get_model();
+	/*******************************************************************************************************************
+	* can modify the following to alter scene
+	*******************************************************************************************************************/
+	std::unique_ptr<Scene> scene(new Scene());
+	scene.get()->reg_model(get_model());
+	scene.get()->add_light(Vec3f(0, 0, -1));
+	//scene.get()->set_perspective()
+	/******************************************************************************************************************/
 
 	//start draw loop
 	while (1)
@@ -37,8 +45,8 @@ void proc_loop()
 		//lock the screen
 		draw_lock();
 
-		//draw model
-		model.get()->draw();
+		//draw scene
+		scene.get()->draw();
 
 		//unlock the screen
 		draw_unlock();
