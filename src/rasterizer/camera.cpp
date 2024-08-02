@@ -17,9 +17,11 @@ Camera::Camera(float step)
 	dir = Vec3f(0.f, 0.f, 1.f);
 	v_up = Vec3f(0.f, 1.f, 0.f);
 }
+
 void Camera::set_step(float step)
 {
-	this->step = step;
+	step = abs(step);
+	this->step = (step > 1.0f) ? 1.0f : step;
 }
 Vec3f Camera::get_pos() const
 {
@@ -39,11 +41,11 @@ void Camera::zoom_out()
 }
 void Camera::left()
 {
-	pos = pos + (dir.cross(v_up)*step);
+	pos = pos - (dir.cross(v_up)*step);
 }
 void Camera::right()
 {
-	pos = pos - (dir.cross(v_up)*step);
+	pos = pos + (dir.cross(v_up)*step);
 }
 void Camera::up()
 {
@@ -55,18 +57,38 @@ void Camera::down()
 }
 void Camera::rot_left()
 {
-	dir.x = dir.x - step;
+	//transform using pitch matrix
+	dir.x = dir.x * cos(step) + dir.z * sin(step);
+	dir.z = dir.x * -sin(step) + dir.z * cos(step);
+
+	v_up.x = v_up.x * cos(step) + v_up.z * sin(step);
+	v_up.z = v_up.x * -sin(step) + v_up.z * cos(step);
 }
 void Camera::rot_right()
 {
-	dir.x = dir.x + step;
+	//transform using pitch matrix
+	dir.x = dir.x * cos(-step) + dir.z * sin(-step);
+	dir.z = dir.x * -sin(-step) + dir.z * cos(-step);
+
+	v_up.x = v_up.x * cos(-step) + v_up.z * sin(-step);
+	v_up.z = v_up.x * -sin(-step) + v_up.z * cos(-step);
 }
 void Camera::rot_up()
 {
-	dir.y = dir.y + step;
+	//transform using roll matrix
+	dir.y = dir.y * cos(step) + dir.z * -sin(step);
+	dir.z = dir.y * sin(step) + dir.z * cos(step);
+
+	v_up.y = v_up.y * cos(step) + v_up.z * -sin(step);
+	v_up.z = v_up.y * sin(step) + v_up.z * cos(step);
 }
 void Camera::rot_down()
 {
-	dir.y = dir.y - step;
+	//transform using roll matrix
+	dir.y = dir.y * cos(-step) + dir.z * -sin(-step);
+	dir.z = dir.y * sin(-step) + dir.z * cos(-step);
+
+	v_up.y = v_up.y * cos(-step) + v_up.z * -sin(-step);
+	v_up.z = v_up.y * sin(-step) + v_up.z * cos(-step);
 }
 

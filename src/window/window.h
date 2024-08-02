@@ -4,7 +4,7 @@
 
 //typedefs
 typedef uint32_t PIXEL;
-typedef enum PIX_RET
+enum PIX_RET
 {
 	SUCCESS,
 	FAIL,
@@ -15,12 +15,11 @@ typedef enum PIX_RET
 //funtion defs
 //window.cpp
 // private global getters
-inline bool get_draw_locked();
-inline int get_buf_width();
-inline int get_buf_height();
-inline PIXEL* get_buf();
-inline float* get_z_buf();
-
+bool get_draw_locked();
+int get_buf_width();
+int get_buf_height();
+PIXEL* get_buf();
+float* get_z_buf();
 
 //window creation/deletion
 int create_window(const char* name, int width, int height);
@@ -47,4 +46,5 @@ void draw_triangle(int x0, int y0, float z0,
 	int x2, int y2, float z2, PIXEL color);
 void fill_triangle(int x0, int y0, float z0,
 	int x1, int y1, float z1,
-	int x2, int y2, float z2, PIXEL color);
+	int x2, int y2, float z2, 
+	PIXEL color0, PIXEL color1, PIXEL color2);

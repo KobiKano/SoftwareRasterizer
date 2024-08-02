@@ -5,7 +5,7 @@
 #include <vector>
 
 //very self explanitory camera class
-typedef class Camera
+class Camera
 {
 public:
 	Camera();
@@ -33,24 +33,46 @@ private:
 //scene class to hold all objects needed to render a scene
 //i.e models, lights, and camera
 //also defines perspective projection and translation for models
-typedef class Scene
+class Scene
 {
 public:
 	Scene();
-	void reg_model(std::unique_ptr<Model> m);
+	~Scene();
+	int reg_model(std::shared_ptr<Model> m);
+	int reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale);
 	void draw();
-	void set_perspective(); //TODO finish
-	void add_light(Vec3f p);
+	void set_pos(int index, Vec3f &center);
+	void rot_left(int index, float rads);
+	void rot_right(int index, float rads);
+	void rot_up(int index, float rads);
+	void rot_down(int index, float rads);
+	void set_scale(int index, float scale);
+	void set_projection(float fov_rad, float zfar, float znear, float aspect_r);
+	void set_aspect_ratio(float aspect_r);
+	void set_z_bound(float zfar, float znear);
+	void set_fov(float fov_rad);
+	void set_wireframe(bool b);
+	int add_light(Vec3f &p);
 private:
-	std::vector<std::unique_ptr<Model>> models;
-	std::vector<Vec3f> lights;
-	Mat4x4f translate;
-	Mat4x4f scale;
-	Mat4x4f perspective;
-	Camera cam;
+	struct ProjMat
+	{
+		Mat4x4f mat;
+		float fov_rad, zfar, znear, aspect_r, f, q;
 
-	bool cullable(const std::vector<Vec3i> &old);
-	std::vector<Vec3f> translate(const Vec3f &old);
-	std::vector<Vec3f> scale(const Vec3f &old);
-	std::vector<Vec3f> perspective(const Vec3f &old);
+		ProjMat() { mat = Mat4x4f(); fov_rad = 0; zfar = 0; znear = 0; aspect_r = 0; }
+		ProjMat(float fov_rad, float zfar, float znear, float aspect_r);  //defined in scene.cpp
+	};
+	std::vector<std::shared_ptr<Model>> models;
+	std::vector<Vec3f> lights;
+	std::vector<Mat4x4f> translates;
+	std::vector<Mat4x4f> scales;
+	ProjMat proj_mat;
+	Camera cam;
+	bool wireframe;
+
+	bool cullable(int model_i, int face_i);
+	void translate(Vec3f &old, int i);
+	void scale(Vec3f &old, int i);
+	void projection(Vec3f &old);
+	void triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color);
 };

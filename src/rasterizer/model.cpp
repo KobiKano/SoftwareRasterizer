@@ -12,7 +12,7 @@
 * Gets filepath of model from user, then parses that file
 * @return: pointer to new model object
 */
-std::unique_ptr<Model> get_model()
+std::shared_ptr<Model> get_model()
 {
 	std::string in;
 	std::cout << "Input FILENAME of model -(src/Models/{FILENAME})-, or press enter to use default\n";
@@ -29,7 +29,7 @@ std::unique_ptr<Model> get_model()
 		f.close();
 	}
 	
-	return std::unique_ptr<Model>(new Model(path.c_str()));
+	return std::shared_ptr<Model>(new Model(path.c_str()));
 }
 
 /**
@@ -45,8 +45,7 @@ Model::Model(const char* filename)
 	//start reading file
 	std::string line;
 	std::ifstream fstream(filename, std::ifstream::in);
-	float largest_vertex_val = -10000;
-	float smallest_vertex_val = 10000;
+	float largest_vertex_val = 0.f;
 	while (std::getline(fstream, line))
 	{
 		std::istringstream s(line);
@@ -59,9 +58,7 @@ Model::Model(const char* filename)
 			for (int i = 0; i < 3; i++)
 			{
 				s >> v.raw[i];
-				largest_vertex_val = (v.raw[i] > largest_vertex_val) ? v.raw[i] : largest_vertex_val;
-				smallest_vertex_val = (v.raw[i] < smallest_vertex_val) ? v.raw[i] : smallest_vertex_val;
-			}
+				largest_vertex_val = (abs(v.raw[i]) > largest_vertex_val) ? abs(v.raw[i]) : largest_vertex_val;			}
 			vertices.push_back(v);
 			log(DEBUG2, "\n" + v.to_string());
 		}
@@ -134,7 +131,7 @@ Model::Model(const char* filename)
 	fstream.close();
 
 	//do post processing pass on vertices to normalize all coordinates to -1, 1 range
-	this->normalize_verts(largest_vertex_val, smallest_vertex_val);
+	this->normalize_verts(largest_vertex_val);
 
 	//do post processing pass on faces to split simple polygons into triangles
 	this->process_faces();
@@ -152,6 +149,9 @@ Model::Model(const char* filename)
 		face_normals[i] = face_normals[i].norm();
 	}
 
+	//default color to white
+	color = WHITE;
+
 	log(DEBUG1, "model creation complete");
 }
 
@@ -162,6 +162,23 @@ Model::~Model()
 {
 	//dont actually need to do anything here
 	log(DEBUG2, "destroying model");
+}
+
+/**
+* Setter for color of model
+* @param color: hex value of color to set
+*/
+void Model::set_color(PIXEL color)
+{
+	this->color = color;
+}
+/**
+* Getter for color of model
+* @return: hex value of model color
+*/
+PIXEL Model::get_color() const
+{
+	return color;
 }
 
 /**
@@ -213,12 +230,12 @@ std::vector<std::vector<Vec3i>>& Model::get_faces()
 * @param largest: largest vertex value
 * @param smallest: smallest vertex value
 */
-void Model::normalize_verts(float largest, float smallest)
+void Model::normalize_verts(float largest)
 {
 	log(DEBUG1, "Normalizing vertices");
 	for (int i = 0; i < vertices.size(); i++)
 	{
-		vertices[i] = (vertices[i] - smallest)/(largest - smallest);
+		vertices[i] = vertices[i]/largest;
 		log(DEBUG1, "\n" + vertices[i].to_string());
 	}
 }
@@ -233,7 +250,7 @@ void Model::add_normals()
 	vert_normals.resize(vertices.size());
 	face_normals.resize(faces.size());
 	//set all values of vert_normals to zero
-	std::fill(vert_normals.begin(), vert_normals.end(), 0.0f);
+	std::fill(vert_normals.begin(), vert_normals.end(), Vec3f(0.f, 0.f, 0.f));
 
 	for (int i = 0; i < faces.size(); i++)
 	{
@@ -349,7 +366,7 @@ void Model::process_faces()
 		//i.e for each set of vertices we will be assuming that the face is made up of non-overlapping lines on that set
 		
 		int num_added = 0;
-		int init_size = faces[i].size();
+		int init_size = (int)faces[i].size();
 		bool invalid = false;
 		while (num_added < init_size - 3)
 		{
@@ -369,7 +386,7 @@ void Model::process_faces()
 				Vec3f A, B, C;
 
 				//assume faces vertices populated in order, i.e. vertex A is in index 1, then B is in index 0, and C in index 2
-				int b = (a == 0) ? faces[i].size() - 1 : a - 1;
+				int b = (a == 0) ? (int)faces[i].size() - 1 : a - 1;
 				int c = (a == faces[i].size() - 1) ? 0 : a + 1;
 
 				A = vertices[faces[i][a].i_vert];

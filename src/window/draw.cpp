@@ -45,7 +45,7 @@ PIX_RET set_pixel(int x, int y, PIXEL color, float depth)
     }
 
     //immediately check if depth is valid
-    if (depth > get_z_buf()[y * get_buf_width() + x])
+    if (depth > get_z_buf()[y * get_buf_width() + x] || depth < 0.f || depth > 1.f)
     {
         return DEPTH;
     }
@@ -178,7 +178,8 @@ void draw_triangle(int x0, int y0, float z0,
 */
 void fill_triangle(int x0, int y0, float z0,
     int x1, int y1, float z1,
-    int x2, int y2, float z2, PIXEL color)
+    int x2, int y2, float z2, 
+    PIXEL color0, PIXEL color1, PIXEL color2)
 {
     //TODO: complete
 }

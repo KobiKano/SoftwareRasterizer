@@ -16,6 +16,7 @@ using namespace std;
 //global defs
 volatile bool g_alive = false;
 volatile bool g_exit_error = false;
+volatile bool g_resize = false;
 static mutex _buf_lk;
 
 static volatile bool _draw_locked = false;
@@ -38,11 +39,11 @@ static BITMAPINFO _bmp_info;
 /*************************************************************************************
 * Getters for private vals to be used in draw.cpp (avoiding file clutter)
 *************************************************************************************/
-inline bool get_draw_locked() { return _draw_locked; }
-inline int get_buf_width() { return _buf_width; }
-inline int get_buf_height() { return _buf_height; }
-inline PIXEL* get_buf() { return _buf; }
-inline float* get_z_buf() { return _z_buf; }
+bool get_draw_locked() { return _draw_locked; }
+int get_buf_width() { return _buf_width; }
+int get_buf_height() { return _buf_height; }
+PIXEL* get_buf() { return _buf; }
+float* get_z_buf() { return _z_buf; }
 
 /*
 * Resize operations
@@ -69,7 +70,12 @@ static bool resize(int width, int height)
         _buf_lk.unlock();
         return false;
     }
-    memset((void*)_z_buf, 1.0f, (size_t)_buf_height * (size_t)_buf_width * sizeof(float));
+
+    //very annoying but have to manually set all values to float 1.0, but compiler will optimize
+    for (size_t i = 0; i < (size_t)_buf_height * (size_t)_buf_width; i++)
+    {
+        _z_buf[i] = 1.f;
+    }
 
     //modify bitmap
     _bmp_info.bmiHeader.biHeight = -height;
@@ -77,6 +83,7 @@ static bool resize(int width, int height)
 
     //unlock and return success
     _buf_lk.unlock();
+    g_resize = true;
     return true;
 }
 
@@ -204,7 +211,11 @@ int create_window(const char* name, int width, int height)
         log(ERR, "Failed to heap allocate window buffer");
         return 1;
     }
-    memset((void*)_z_buf, 1.0f, (size_t)_buf_height * (size_t)_buf_width * sizeof(float));
+    //very annoying but have to manually set all values to float 1.0, but compiler will optimize
+    for (size_t i = 0; i < (size_t)_buf_height * (size_t)_buf_width; i++)
+    {
+        _z_buf[i] = 1.f;
+    }
 
     //allocate bitmap for buffer
     memset(&_bmp_info, 0, sizeof(BITMAPINFO));
@@ -259,7 +270,11 @@ void window_clear()
     }
 
     memset((void*)_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(PIXEL));
-    memset((void*)_z_buf, 1.0f, (size_t)_buf_height * (size_t)_buf_width * sizeof(float));
+    //very annoying but have to manually set all values to float 1.0, but compiler will optimize
+    for (size_t i = 0; i < (size_t)_buf_height * (size_t)_buf_width; i++)
+    {
+        _z_buf[i] = 1.f;
+    }
 
     //unlock and return succeess
     _buf_lk.unlock();
