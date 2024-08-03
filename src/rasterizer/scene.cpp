@@ -239,7 +239,7 @@ void Scene::triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color)
 	//check if wireframe
 	if (wireframe)
 	{
-		draw_triangle(x0, y0, t_draw.A.z, x1, y2, t_draw.B.z, x2, y2, t_draw.C.z, color);
+		draw_triangle(x0, y0, t_draw.A.z, x1, y1, t_draw.B.z, x2, y2, t_draw.C.z, color);
 	}
 	//else fill triangle using vertex normals to determine lighting
 	else

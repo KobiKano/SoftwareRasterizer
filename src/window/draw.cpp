@@ -124,7 +124,7 @@ void draw_line(int x0, int y0, float z0, int x1, int y1, float z1, PIXEL color)
     //calculate gradients
     int dx = x1 - x0;
     int dy = y1 - y0;
-    float dz = z1 - z0;
+    float dz_dx = (z1 - z0)/((float)dx);
     int dyerror2 = abs(dy) * 2;
     int yerror2 = 0;
     int y = y0;
@@ -154,8 +154,7 @@ void draw_line(int x0, int y0, float z0, int x1, int y1, float z1, PIXEL color)
         }
 
         //calculate next z step
-        if (dz != 0)
-            z += (z1 > z0) ? -((float)dx) / dz : ((float)dx) / dz;
+        z += dz_dx;
     }
 }
 
