@@ -62,6 +62,18 @@ Model::Model(const char* filename)
 			vertices.push_back(v);
 			log(DEBUG2, "\n" + v.to_string());
 		}
+		else if (!t.compare("vn"))
+		{
+			//vertex texture
+			Vec3f v;
+			for (int i = 0; i < 2; i++)
+			{
+				//assume only u-v, default w to zero
+				s >> v.raw[i];
+			}
+			vert_normals.push_back(v);
+			log(DEBUG2, "\n" + v.to_string());
+		}
 		else if (!t.compare("vt"))
 		{
 			//vertex texture
@@ -136,7 +148,7 @@ Model::Model(const char* filename)
 	//do post processing pass on faces to split simple polygons into triangles
 	this->process_faces();
 
-	//vertex and face normals in model
+	//get face normals from vertex normals
 	this->add_normals();
 
 	//normalize all normals to 1
@@ -246,25 +258,60 @@ void Model::normalize_verts(float largest)
 void Model::add_normals()
 {
 	log(DEBUG1, "adding normals");
-
-	vert_normals.resize(vertices.size());
-	face_normals.resize(faces.size());
-	//set all values of vert_normals to zero
-	std::fill(vert_normals.begin(), vert_normals.end(), Vec3f(0.f, 0.f, 0.f));
-
-	for (int i = 0; i < faces.size(); i++)
+	if (vert_normals.size() != vertices.size())
 	{
-		//each normal index is the same as the vertex index
-		//calc face normal
-		Vec3f AB = vertices[faces[i][1].i_vert] - vertices[faces[i][0].i_vert];
-		Vec3f AC = vertices[faces[i][2].i_vert] - vertices[faces[i][0].i_vert];
-		face_normals[i] = AB.cross(AC);
+		log(WARNING, "Incorrect mapping of normals to vertices");
+		vert_normals.clear();
+		vert_normals.resize(vertices.size());
+		face_normals.resize(faces.size());
+		//set all values of vert_normals to zero
+		std::fill(vert_normals.begin(), vert_normals.end(), Vec3f(0.f, 0.f, 0.f));
 
-		//want to add the normal value of the face to each vertex normal to find total normal
-		for (int j = 0; j < faces[i].size(); j++)
+		//get center of model
+		Vec3f center = Vec3f(0.f, 0.f, 0.f);
+		for (auto v : vertices)
+			center = center + v;
+		center = center / 3.f;
+
+		//add normals(we assume no concavity, thus we approach this with a very greedy solution)
+		//provide normals in obj file if you dont want this problem
+		for (int i = 0; i < faces.size(); i++)
 		{
-			faces[i][j].i_norm = faces[i][j].i_vert;
-			vert_normals[faces[i][j].i_norm] = vert_normals[faces[i][j].i_norm] + face_normals[i];
+			//each normal index is the same as the vertex index
+			Vec3f A = vertices[faces[i][0].i_vert];
+			Vec3f B = vertices[faces[i][1].i_vert];
+			Vec3f C = vertices[faces[i][2].i_vert];
+
+			//if the determinant is positive it is counterclockwise, negative is clockwise and 0 is colinear
+			//calc face normal
+			Vec3f face_center = ((A + B + C)/3.f) - center;
+			
+
+			//use the vector from the center to the face as reference point to determine if cross product
+			//	on the face is pointing outward from center, if angle greater than 90 degrees, use other cross product
+			Vec3f norm = (B - A).cross(C - A);
+			norm = (norm.dot(face_center) >= 0.f) ? norm : (C - A).cross(B - A);
+			face_normals[i] = norm.norm();
+
+			//want to add the normal value of the face to each vertex normal to find total normal
+			for (int j = 0; j < faces[i].size(); j++)
+			{
+				faces[i][j].i_norm = faces[i][j].i_vert;
+				vert_normals[faces[i][j].i_norm] = vert_normals[faces[i][j].i_norm] + face_normals[i];
+			}
+		}
+	}
+	else
+	{
+		//find face normal by adding all normals of each vertex
+		face_normals.resize(faces.size());
+		for (int i = 0; i < faces.size(); i++)
+		{
+			Vec3f A = vert_normals[faces[i][0].i_norm];
+			Vec3f B = vert_normals[faces[i][1].i_norm];
+			Vec3f C = vert_normals[faces[i][2].i_norm];
+
+			face_normals[i] = A + B + C;
 		}
 	}
 }

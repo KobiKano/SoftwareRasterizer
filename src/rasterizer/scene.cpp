@@ -38,6 +38,9 @@ Scene::ProjMat::ProjMat(float fov_rad, float zfar, float znear, float aspect_r)
 	mat.val[3][3] = 0;
 }
 
+/**
+* Constructor for scene object
+*/
 Scene::Scene()
 {
 	//initialize camera with 0.1 step speed
@@ -55,6 +58,11 @@ Scene::~Scene()
 {
 	log(DEBUG1, "ending scene");
 }
+/**
+* Adds model in scene
+* @param m: model to add
+* @return: index of model
+*/
 int Scene::reg_model(std::shared_ptr<Model> m)
 {
 	models.push_back(m);
@@ -64,6 +72,13 @@ int Scene::reg_model(std::shared_ptr<Model> m)
 
 	return (int)models.size() - 1;
 }
+/**
+* Adds model in scene
+* @param m: model to add
+* @param center: position of model
+* @param scale: scale of model
+* @return: index of model
+*/
 int Scene::reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale)
 {
 	models.push_back(m);
@@ -78,16 +93,32 @@ int Scene::reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale)
 
 	return i;
 }
+/**
+* Sets projection matrix
+* @param fov_rad: angle of field of view
+* @param zfar: position of far plane
+* @param znear: position of near plane
+* @param aspect_r: aspect ratio to scale points to
+*/
 void Scene::set_projection(float fov_rad, float zfar, float znear, float aspect_r)
 {
 	proj_mat = ProjMat(fov_rad, zfar, znear, aspect_r);
 }
+/**
+* Sets aspect ration of perspective transform
+* @param aspect_r: aspect ratio to scale points to
+*/
 void Scene::set_aspect_ratio(float aspect_r)
 {
 	//clear current val
 	proj_mat.mat.val[0][0] = proj_mat.f * aspect_r;
 	proj_mat.aspect_r = aspect_r;
 }
+/**
+* Sets z bounds of perspective transform
+* @param zfar: position of far plane
+* @param znear: position of near plane
+*/
 void Scene::set_z_bound(float zfar, float znear)
 {
 	//set new val
@@ -98,6 +129,10 @@ void Scene::set_z_bound(float zfar, float znear)
 	proj_mat.zfar = zfar;
 	proj_mat.znear = znear;
 }
+/**
+* Sets fov of perspective transform
+* @param fov_rad: angle of field of view
+*/
 void Scene::set_fov(float fov_rad)
 {
 	float f = 1 / tan(fov_rad / 2);
@@ -107,43 +142,85 @@ void Scene::set_fov(float fov_rad)
 	proj_mat.fov_rad = fov_rad;
 	proj_mat.f = f;
 }
+/**
+* Sets wireframe mode
+* @param b: bool value to set
+*/
 void Scene::set_wireframe(bool b)
 {
 	wireframe = b;
 }
+/**
+* Rotates model left
+* @param index: index of model
+* @param rads: angle to rotate in radians
+*/
 void Scene::rot_left(int index, float rads)
 {
 
 }
+/**
+* Rotates model right
+* @param index: index of model
+* @param rads: angle to rotate in radians
+*/
 void Scene::rot_right(int index, float rads)
 {
 
 }
+/**
+* Rotates model up
+* @param index: index of model
+* @param rads: angle to rotate in radians
+*/
 void Scene::rot_up(int index, float rads)
 {
 
 }
+/**
+* Rotates model down
+* @param index: index of model
+* @param rads: angle to rotate in radians
+*/
 void Scene::rot_down(int index, float rads)
 {
 
 }
+/**
+* Sets position of model
+* @param index: index of model
+* @param center: center of model (assumes vertices in model centered around (0,0,0)
+*/
 void Scene::set_pos(int index, Vec3f &center)
 {
 	translates[index].val[0][3] = center.x;
 	translates[index].val[1][3] = center.y;
 	translates[index].val[2][3] = center.z;
 }
+/**
+* Sets the scale of a specific model
+* @param index: index of model
+* @param scale: scale of model on all axes
+*/
 void Scene::set_scale(int index, float scale)
 {
 	scales[index].val[0][0] = scale;
 	scales[index].val[1][1] = scale;
 	scales[index].val[2][2] = scale;
 }
+/**
+* Adds light to scene
+* @param p: position of light source
+* @return: index of light in storage vector
+*/
 int Scene::add_light(Vec3f &p)
 {
 	lights.push_back(p);
 	return (int)lights.size() - 1;
 }
+/**
+* Draws all models to the screen
+*/
 void Scene::draw()
 {
 	//iterate through each model
@@ -153,13 +230,12 @@ void Scene::draw()
 		std::vector<std::vector<Vec3i>> faces = models[i].get()->get_faces();
 		std::vector<Vec3f> vertices = models[i].get()->get_vertices();
 		std::vector<Vec3f> normals = models[i].get()->get_vert_normals();
+		std::vector<Triangle> t_draws;
+		std::vector<Triangle> t_norms;
+		std::vector<int> face_i;
 		for (int j = 0; j < faces.size(); j++)
 		{
-			//check if face can be culled (face is facing away from viewpoint)
-			if (this->cullable(i, j))
-				continue;
-
-			//else translate vertices
+			//translate vertices
 			Triangle t_draw;
 			Triangle t_norm;
 			for (int k = 0; k < 3; k++)
@@ -170,46 +246,154 @@ void Scene::draw()
 				translate(vertex, i);
 				//scale accordingly
 				scale(vertex, i);
-				//finally determine projection
-				projection(vertex);
+				//translate based on camera pos
 				t_draw.raw[k] = vertex;
 				t_norm.raw[k] = normals[faces[j][k].i_norm];
 			}
 
-			//draw triangles
-			triangle_to_screen(t_draw, t_norm, models[i].get()->get_color());
+			//otherwise add triangles to draw list
+			t_draws.push_back(t_draw);
+			t_norms.push_back(t_norm);
+			face_i.push_back(j);
 		}
+
+		//clip over z bounds
+		clip_z(t_draws, t_norms, face_i);
+
+		//project triangle to screen coords
+		projection(t_draws);
+
+		//check if face can be culled (face is facing away from viewpoint)
+		cull(i, face_i, t_draws, t_norms);
+
+		//clip over x and y bounds
+		clip_xy(t_draws, t_norms);
+
+
+		//draw all triangles
+		if (t_draws.size() != t_norms.size())
+		{
+			log(ERR, "Error occured drawing model... Incorrect triangle or vertex normal count... skipping");
+			continue;
+		}
+		for (int j = 0; j < t_draws.size(); j++)
+			triangle_to_screen(t_draws[j], t_norms[j], models[i].get()->get_color());
 	}
 }
 
 /********************************************************************
 * Private Functions
 ********************************************************************/
-bool Scene::cullable(int model_i, int face_i)
+/**
+* Check if face can be culled
+* If the face a facing completely away from the camera, then we ignore it
+* Otherwise proceed with draw
+* @param model_i: index of model
+* @param face_i: index of face
+* @param face: face to check
+* @param vertices: vertices of model
+* @return true if we can discard face, false otherwise
+*/
+void Scene::cull(int model_i, std::vector<int> &face_i, std::vector<Triangle> &t_draws, std::vector<Triangle> &t_norms)
 {
-	//TODO
-	return false;
+	//get the face normal to check
+	std::vector<Triangle> new_draws;
+	std::vector<Triangle> new_norms;
+	for (int i = 0; i < t_draws.size(); i++)
+	{
+		Vec3f face_n = models[model_i].get()->get_face_normals()[face_i[i]];
+
+		//determine the vector pointing from the camera to this face
+		//get center of face
+		Vec3f center;
+		for (int j = 0; j < 3; j++)
+		{
+			center = center + t_draws[i].raw[j];
+		}
+		center = center / 3.f;
+		Vec3f face_to_cam = cam.get_pos() - center;
+
+		//if the dot product between the camera and normal is less than 90 degrees, then we can draw
+		if (face_to_cam.norm().dot(face_n) > 0.f)
+		{
+			new_draws.push_back(t_draws[i]);
+			new_norms.push_back(t_norms[i]);
+		}
+
+		//else we don't need to draw since face can't be seen
+	}
+	//redirect t_draws and t_norms to new vectors
+	t_draws.clear();
+	t_norms.clear();
+	t_draws = new_draws;
+	t_norms = new_draws;
 }
+/**
+* Translates input vertex
+* @param old: vertex data to modify
+* @param i: index of transform matrix
+*/
 void Scene::translate(Vec3f &old, int i)
 {
 	Mat4x4f t = translates[i];
 	Vec4f v = Vec4f(old);
 	old = (Vec3f)(t * v);
 }
+/**
+* Scales input vertex
+* @param old: vertex data to modify
+* @param i: index of scale matrix
+*/
 void Scene::scale(Vec3f &old, int i)
 {
 	Mat4x4f t = scales[i];
 	Vec4f v = Vec4f(old);
 	old = (Vec3f)(t * v);
 }
-void Scene::projection(Vec3f &old)
+/**
+* Clips triangle over z bounds of perspective box if part of triangle outside of box
+* @param t_draws: vector of triangles to draw
+* @param t_norms: vector of vertex normals for each triangle
+*/
+void Scene::clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms, std::vector<int>& face_i)
 {
-	Vec4f v = Vec4f(old);
-	v = proj_mat.mat * v;
-	old = (Vec3f)v;
-	if (v.w != 0.f)
-		old = old / v.w;
+
 }
+/**
+* Clips triangle over x and y bounds of perspective box if part of triangle outside of box
+* @param t_draws: vector of triangles to draw
+* @param t_norms: vector of vertex normals for each triangle
+*/
+void Scene::clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms)
+{
+
+}
+/**
+* Projects input vertices to screen space(adds for depth)
+* @param old: vertex data to modify
+*/
+void Scene::projection(std::vector<Triangle>& t_draws)
+{
+	for (int i = 0; i < t_draws.size(); i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			Vec4f v = Vec4f(t_draws[i].raw[j]);
+			v = proj_mat.mat * v;
+			t_draws[i].raw[j] = (Vec3f)v;
+			if (v.w != 0.f)
+				t_draws[i].raw[j] = t_draws[i].raw[j] / v.w;
+		}
+	}
+}
+/**
+* Draws a triangle to the screen
+* Assumes vertices are normalized between [-1, 1]
+* Uses wireframe setting to draw in wireframe or solid block
+* @param t_draw: triangle to draw
+* @param t_norm: normal vectors of vertices in triangle
+* @param color: color to use in draw
+*/
 void Scene::triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color)
 {
 	//assume z values to be between 0 and 1, values outside of range will just not be drawn

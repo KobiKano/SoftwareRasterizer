@@ -59,7 +59,7 @@ private:
 		Mat4x4f mat;
 		float fov_rad, zfar, znear, aspect_r, f, q;
 
-		ProjMat() { mat = Mat4x4f(); fov_rad = 0; zfar = 0; znear = 0; aspect_r = 0; }
+		ProjMat() { mat = Mat4x4f(); fov_rad = 0; zfar = 0; znear = 0; aspect_r = 0; f = 0; q = 0; }
 		ProjMat(float fov_rad, float zfar, float znear, float aspect_r);  //defined in scene.cpp
 	};
 	std::vector<std::shared_ptr<Model>> models;
@@ -70,9 +70,11 @@ private:
 	Camera cam;
 	bool wireframe;
 
-	bool cullable(int model_i, int face_i);
+	void cull(int model_i, std::vector<int>& face_i, std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms);
 	void translate(Vec3f &old, int i);
 	void scale(Vec3f &old, int i);
-	void projection(Vec3f &old);
+	void clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms, std::vector<int>& face_i);
+	void clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms);
+	void projection(std::vector<Triangle> &t_draws);
 	void triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color);
 };
