@@ -33,6 +33,7 @@
     <ClInclude Include="src\rasterizer\funcs.h" />
     <ClInclude Include="src\rasterizer\geom.h" />
     <ClInclude Include="src\rasterizer\model.h" />
+    <ClInclude Include="src\rasterizer\quaternion.h" />
     <ClInclude Include="src\rasterizer\render.h" />
     <ClInclude Include="src\window\window.h" />
   </ItemGroup>

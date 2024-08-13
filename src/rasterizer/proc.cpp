@@ -44,6 +44,9 @@ void proc_loop()
 		//clear screen
 		window_clear();
 
+		//process inputs
+		scene.get()->process_inputs();
+
 		//lock the screen
 		draw_lock();
 

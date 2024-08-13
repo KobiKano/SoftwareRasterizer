@@ -69,6 +69,8 @@ int Scene::reg_model(std::shared_ptr<Model> m)
 	//default to center at (0,0,0) and scale of 1.0
 	translates.push_back(Mat4x4f());
 	scales.push_back(Mat4x4f());
+	//default to no rotation and x-y-z rot order
+	rotates.push_back(Rotation());
 
 	return (int)models.size() - 1;
 }
@@ -85,6 +87,7 @@ int Scene::reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale)
 	//init with defaults
 	translates.push_back(Mat4x4f());
 	scales.push_back(Mat4x4f());
+	rotates.push_back(Rotation());
 
 	//use build in functions to set matrix vals
 	int i = (int)models.size() - 1;
@@ -151,40 +154,58 @@ void Scene::set_wireframe(bool b)
 	wireframe = b;
 }
 /**
-* Rotates model left
+* Adds pitch to object rotation
 * @param index: index of model
-* @param rads: angle to rotate in radians
+* @param rads: rads to change (can be negative)
 */
-void Scene::rot_left(int index, float rads)
+void Scene::add_pitch(int index, float rads)
 {
+	Quaternion q = rotates[index].x; //x-axis
+	float curr_rads = q.get_angle();
 
+	//do operations
+	q = Quaternion(curr_rads + rads, Vec3f(1.f, 0.f, 0.f));
+	rotates[index].x = q;
 }
 /**
-* Rotates model right
+* Adds yaw object rotation
 * @param index: index of model
-* @param rads: angle to rotate in radians
+* @param rads: rads to change (can be negative)
 */
-void Scene::rot_right(int index, float rads)
+void Scene::add_yaw(int index, float rads)
 {
+	Quaternion q = rotates[index].y; //y-axis
+	float curr_rads = q.get_angle();
 
+	//do operations
+	q = Quaternion(curr_rads + rads, Vec3f(0.f, 1.f, 0.f));
+	rotates[index].y = q;
 }
 /**
-* Rotates model up
+* Adds roll object rotation
 * @param index: index of model
-* @param rads: angle to rotate in radians
+* @param rads: rads to change (can be negative)
 */
-void Scene::rot_up(int index, float rads)
+void Scene::add_roll(int index, float rads)
 {
+	Quaternion q = rotates[index].z; //z-axis
+	float curr_rads = q.get_angle();
 
+	//do operations
+	q = Quaternion(curr_rads + rads, Vec3f(0.f, 0.f, 1.f));
+	rotates[index].z = q;
 }
 /**
-* Rotates model down
+* Sets order in which to rotate object about axis
 * @param index: index of model
-* @param rads: angle to rotate in radians
+* @param order: new axis order ([0] is first, [2] is last)
 */
-void Scene::rot_down(int index, float rads)
+void Scene::set_rot_order(int index, int order[3])
 {
-
+	for (int i = 0; i < 3; i++)
+	{
+		rotates[index].order[i] = order[i];
+	}
 }
 /**
 * Sets position of model
@@ -218,6 +239,84 @@ int Scene::add_light(Vec3f &p)
 	lights.push_back(p);
 	return (int)lights.size() - 1;
 }
+
+/**
+* Sets camera float step
+* @param step: float value to set
+*/
+void Scene::set_cam_step(float step)
+{
+	cam.set_step(step);
+}
+
+extern volatile bool UP_KEY;
+extern volatile bool DOWN_KEY;
+extern volatile bool LEFT_KEY;
+extern volatile bool RIGHT_KEY;
+extern volatile bool W_KEY;
+extern volatile bool A_KEY;
+extern volatile bool S_KEY;
+extern volatile bool D_KEY;
+extern volatile bool Z_KEY;
+extern volatile bool C_KEY;
+
+/**
+* Proceess keyboard inputs from window
+* This is very rudimentary, I could've done a proper event system, however, that is just extra work for no gain
+*/
+void Scene::process_inputs()
+{
+	if (UP_KEY)
+	{
+		cam.rot_up();
+		UP_KEY = false;
+	}
+	if (DOWN_KEY)
+	{
+		cam.rot_down();
+		DOWN_KEY = false;
+	}
+	if (LEFT_KEY)
+	{
+		cam.rot_left();
+		LEFT_KEY = false;
+	}
+	if (RIGHT_KEY)
+	{
+		cam.rot_right();
+		RIGHT_KEY = false;
+	}
+	if (W_KEY)
+	{
+		cam.zoom_in();
+		W_KEY = false;
+	}
+	if (A_KEY)
+	{
+		cam.left();
+		A_KEY = false;
+	}
+	if (S_KEY)
+	{
+		cam.zoom_out();
+		S_KEY = false;
+	}
+	if (D_KEY)
+	{
+		cam.right();
+		D_KEY = false;
+	}
+	if (Z_KEY)
+	{
+		cam.roll_left();
+		Z_KEY = false;
+	}
+	if (C_KEY)
+	{
+		cam.roll_right();
+		C_KEY = false;
+	}
+}
 /**
 * Draws all models to the screen
 */
@@ -233,6 +332,7 @@ void Scene::draw()
 		std::vector<Triangle> t_draws;
 		std::vector<Triangle> t_norms;
 		std::vector<int> face_i;
+		Mat4x4f cam_mat = cam.gen_mat();
 		for (int j = 0; j < faces.size(); j++)
 		{
 			//translate vertices
@@ -242,13 +342,19 @@ void Scene::draw()
 			{
 				//all vertices should be within [-1, 1] range on all axis
 				Vec3f vertex = vertices[faces[j][k].i_vert];
+				Vec3f norm = normals[faces[j][k].i_norm];
+				//rotate object
+				rotate(vertex, i);
+				rotate(norm, i);
 				//translate to world coords
 				translate(vertex, i);
-				//scale accordingly
-				scale(vertex, i);
+
 				//translate based on camera pos
+				vertex = Vec3f(cam_mat * Vec4f(vertex));
+
+				//add to draw list
 				t_draw.raw[k] = vertex;
-				t_norm.raw[k] = normals[faces[j][k].i_norm];
+				t_norm.raw[k] = norm;
 			}
 
 			//otherwise add triangles to draw list
@@ -290,9 +396,8 @@ void Scene::draw()
 * Otherwise proceed with draw
 * @param model_i: index of model
 * @param face_i: index of face
-* @param face: face to check
-* @param vertices: vertices of model
-* @return true if we can discard face, false otherwise
+* @param t_draws: traingles to draw
+* @param t_norms: triangle normals
 */
 void Scene::cull(int model_i, std::vector<int> &face_i, std::vector<Triangle> &t_draws, std::vector<Triangle> &t_norms)
 {
@@ -329,6 +434,22 @@ void Scene::cull(int model_i, std::vector<int> &face_i, std::vector<Triangle> &t
 	t_norms = new_draws;
 }
 /**
+* Rotates an object based off rotation matrix
+* Object should be centered around origin at this point
+* @param old: vertex data to modify
+* @param i: index of rotation matrix
+*/
+void Scene::rotate(Vec3f &old, int i)
+{
+	//iterate through each rotation on 
+	for (int j = 0; j < 3; j++)
+	{
+		Quaternion q = rotates[i].raw[rotates[i].order[j]];
+		Quaternion q_neg = q.conjugate();
+		old = (Vec3f)(q * Quaternion(old) * q_neg);
+	}
+}
+/**
 * Translates input vertex
 * @param old: vertex data to modify
 * @param i: index of transform matrix
@@ -350,6 +471,137 @@ void Scene::scale(Vec3f &old, int i)
 	Vec4f v = Vec4f(old);
 	old = (Vec3f)(t * v);
 }
+
+/*
+* Helper funtion to return point at which a line intersects a plane
+* @param plane_p: position of center of plane
+* @param plane_n: normal vector of plane
+* @param p0: start of line
+* @param p1: end of line
+* @return: point of intersection
+*/
+static Vec3f intersect_plane(Vec3f plane_p, Vec3f plane_n, Vec3f p0, Vec3f p1)
+{
+	plane_n = plane_n.norm();
+	float plane_d = -plane_n.dot(plane_p);
+	float ad = p0.dot(plane_n);
+	float bd = p1.dot(plane_n);
+	float t = (-plane_d - ad) / (bd - ad);
+	Vec3f line_start_end = p1 - p0;
+	Vec3f intersect = line_start_end * t;
+	return p0 + intersect;
+}
+
+/**
+* Helper function to clip a triangle over a given plane
+* @param plane_p position of plane
+* @param plane_n normal vector of plane
+* @param in: triangle to clip
+* @param in_n: vertex normals of triangle
+* @param out1: possible output triangle 1
+* @param out2: possible output triangle 2
+* @param out_n1: possible vertex normals of output 1
+* @param out_n2: possible vertex normals of output 2
+* @return: number of output triangles
+*/
+static int clip(Vec3f &plane_p, Vec3f &plane_n, Triangle &in, Triangle &in_n, Triangle &out1, Triangle &out2, Triangle &out_n1, Triangle &out_n2)
+{
+	//ensure plane normal is normalized
+	plane_n = plane_n.norm();
+
+	//auto funcntion to determine signed distance from point to plane
+	//allows to determine if point on inside or outside of view box
+	auto dist = [&](Vec3f& p)
+	{
+		return (plane_n.x * p.x + plane_n.y * p.y + plane_n.z * p.z - plane_n.dot(plane_p));
+	};
+
+	//tmp storage of inside and outside points in triangle
+	Vec3f* in_p[3]; Vec3f* in_n_p[3];  int num_in_p = 0;
+	Vec3f* out_p[3]; Vec3f* out_n_p[3];  int num_out_p = 0;
+
+	//determine signed distance for each vertex of triangle
+	float d[3] = { dist(in.raw[0]), dist(in.raw[1]), dist(in.raw[2]) };
+	for (int i = 0; i < 3; i++)
+	{
+		if (d[i] >= 0)
+		{
+			in_n_p[num_in_p] = &in_n.raw[i];
+			in_p[num_in_p++] = &in.raw[i];
+		}
+		else
+		{
+			out_n_p[num_out_p] = &in_n.raw[i];
+			out_p[num_out_p++] = &in.raw[i];
+		}
+	}
+
+	//determine which course of action to take dependent on num inside points
+	switch (num_in_p)
+	{
+	case 0:
+		return 0; //can discard triangle
+	case 3:
+	{
+		out1 = in;
+		out_n1 = in_n;
+		return 1; //don't need to clip triangle
+	}
+	case 2:
+	{
+		//need to form two extra triangles
+		//get intersections between points inside and outside
+		Vec3f p1 = intersect_plane(plane_p, plane_n, *in_p[0], *out_p[0]);
+		Vec3f p2 = intersect_plane(plane_p, plane_n, *in_p[1], *out_p[0]);
+
+		out1 = Triangle(p1, *in_p[0], *in_p[1]);
+		out2 = Triangle(p1, *in_p[1], p2);
+
+		//push normal vector of clipped points towards inner points by ratio of distance clipped to distance
+		float r_d1 = p1.dist(*in_p[0]) / in_p[0]->dist(*out_p[0]);
+		float r_d2 = p2.dist(*in_p[1]) / in_p[1]->dist(*out_p[0]);
+
+		Vec3f d_in_out1 = *in_n_p[0] - *out_n_p[0];
+		Vec3f d_in_out2 = *in_n_p[1] - *out_n_p[0];
+
+		Vec3f p1_n = *out_n_p[0] + (d_in_out1 * r_d1);
+		Vec3f p2_n = *out_n_p[0] + (d_in_out2 * r_d2);
+
+		out_n1 = Triangle(p1_n, *in_n_p[0], *in_n_p[1]);
+		out_n2 = Triangle(p1_n, *in_n_p[1], p2_n);
+
+		return 2;
+	}
+	case 1:
+	{
+		//simply set new end points on triangle
+		//get intersections between points inside and outside
+		Vec3f p1 = intersect_plane(plane_p, plane_n, *in_p[0], *out_p[0]);
+		Vec3f p2 = intersect_plane(plane_p, plane_n, *in_p[0], *out_p[1]);
+
+		out1 = Triangle(*in_p[0], p1, p2);
+
+		//push normal vector of clipped points towards inner points by ratio of distance clipped to distance
+		float r_d1 = p1.dist(*out_p[0]) / out_p[0]->dist(*in_p[0]);
+		float r_d2 = p2.dist(*out_p[1]) / out_p[1]->dist(*in_p[0]);
+
+		Vec3f d_in_out1 = *in_n_p[0] - *out_n_p[0];
+		Vec3f d_in_out2 = *in_n_p[0] - *out_n_p[1];
+
+		Vec3f p1_n = *out_n_p[0] + (d_in_out1 * r_d1);
+		Vec3f p2_n = *out_n_p[1] + (d_in_out2 * r_d2);
+
+		out_n1 = Triangle(*in_n_p[0], p1_n, p2_n);
+
+		return 1;
+	}
+	default:
+	{
+		log(ERR, "Error occured in clipping, should never reach this... Ignoring triangle");
+		return 0;
+	}
+	}
+}
 /**
 * Clips triangle over z bounds of perspective box if part of triangle outside of box
 * @param t_draws: vector of triangles to draw
@@ -357,7 +609,49 @@ void Scene::scale(Vec3f &old, int i)
 */
 void Scene::clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms, std::vector<int>& face_i)
 {
+	std::vector<Triangle> new_draws;
+	std::vector<Triangle> new_norms;
+	std::vector<int> new_face_i;
 
+	//get near and far plane
+	Vec3f plane_p_near = Vec3f(0.f, 0.f, proj_mat.znear);
+	Vec3f plane_p_far = Vec3f(0.f, 0.f, proj_mat.zfar);
+	Vec3f plane_n_near = Vec3f(0.f, 0.f, 1.f);
+	Vec3f plane_n_far = Vec3f(0.f, 0.f, -1.f);
+	for (int i = 0; i < t_draws.size(); i++)
+	{
+		Triangle out[2];
+		Triangle out_n[2];
+		int num;
+
+		//clip near plane
+		num = clip(plane_p_near, plane_n_near, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
+		for (int j = 0; j < num; j++)
+		{
+			//add to output
+			new_draws.push_back(out[j]);
+			new_norms.push_back(out_n[j]);
+			new_face_i.push_back(face_i[i]);
+		}
+
+		//clip far plane
+		num = clip(plane_p_far, plane_n_far, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
+		for (int j = 0; j < num; j++)
+		{
+			//add to output
+			new_draws.push_back(out[j]);
+			new_norms.push_back(out_n[j]);
+			new_face_i.push_back(face_i[i]);
+		}
+	}
+
+	//point to new data vectors
+	t_draws.clear();
+	t_norms.clear();
+	face_i.clear();
+	t_draws = new_draws;
+	t_norms = new_norms;
+	face_i = new_face_i;
 }
 /**
 * Clips triangle over x and y bounds of perspective box if part of triangle outside of box
@@ -366,7 +660,66 @@ void Scene::clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norm
 */
 void Scene::clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms)
 {
+	std::vector<Triangle> new_draws;
+	std::vector<Triangle> new_norms;
 
+	//get near and far plane
+	Vec3f plane_p_x0 = Vec3f(0.f, 0.f, -1.f);
+	Vec3f plane_p_x1 = Vec3f(0.f, 0.f, 1.f);
+	Vec3f plane_n_x0 = Vec3f(0.f, 0.f, 1.f);
+	Vec3f plane_n_x1 = Vec3f(0.f, 0.f, -1.f);
+	Vec3f plane_p_y0 = Vec3f(0.f, 0.f, -1.f);
+	Vec3f plane_p_y1 = Vec3f(0.f, 0.f, 1.f);
+	Vec3f plane_n_y0 = Vec3f(0.f, 0.f, 1.f);
+	Vec3f plane_n_y1 = Vec3f(0.f, 0.f, -1.f);
+	for (int i = 0; i < t_draws.size(); i++)
+	{
+		Triangle out[2];
+		Triangle out_n[2];
+		int num;
+
+		//clip x0 plane
+		num = clip(plane_p_x0, plane_n_x0, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
+		for (int j = 0; j < num; j++)
+		{
+			//add to output
+			new_draws.push_back(out[j]);
+			new_norms.push_back(out_n[j]);
+		}
+
+		//clip x1 plane
+		num = clip(plane_p_x1, plane_n_x1, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
+		for (int j = 0; j < num; j++)
+		{
+			//add to output
+			new_draws.push_back(out[j]);
+			new_norms.push_back(out_n[j]);
+		}
+
+		//clip y0 plane
+		num = clip(plane_p_y0, plane_n_y0, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
+		for (int j = 0; j < num; j++)
+		{
+			//add to output
+			new_draws.push_back(out[j]);
+			new_norms.push_back(out_n[j]);
+		}
+
+		//clip y1 plane
+		num = clip(plane_p_y1, plane_n_y1, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
+		for (int j = 0; j < num; j++)
+		{
+			//add to output
+			new_draws.push_back(out[j]);
+			new_norms.push_back(out_n[j]);
+		}
+	}
+
+	//point to new data vectors
+	t_draws.clear();
+	t_norms.clear();
+	t_draws = new_draws;
+	t_norms = new_norms;
 }
 /**
 * Projects input vertices to screen space(adds for depth)

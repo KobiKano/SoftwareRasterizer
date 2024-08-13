@@ -14,9 +14,20 @@
 using namespace std;
 
 //global defs
+volatile bool UP_KEY = false;
+volatile bool DOWN_KEY = false;
+volatile bool LEFT_KEY = false;
+volatile bool RIGHT_KEY = false;
+volatile bool W_KEY = false;
+volatile bool A_KEY = false;
+volatile bool S_KEY = false;
+volatile bool D_KEY = false;
+volatile bool Z_KEY = false;
+volatile bool C_KEY = false;
 volatile bool g_alive = false;
 volatile bool g_exit_error = false;
 volatile bool g_resize = false;
+
 static mutex _buf_lk;
 
 static volatile bool _draw_locked = false;
@@ -133,6 +144,50 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             g_exit_error = true;
             SendMessage(_handle, WM_DESTROY, 0, 0);
+        }
+    }
+    return 0;
+    case WM_KEYDOWN:
+    {
+        if (GetKeyState(VK_UP) & 0x8000)
+        {
+            UP_KEY = true;
+        }
+        if (GetKeyState(VK_DOWN) & 0x8000)
+        {
+            DOWN_KEY = true;
+        }
+        if (GetKeyState(VK_LEFT) & 0x8000)
+        {
+            LEFT_KEY = true;
+        }
+        if (GetKeyState(VK_RIGHT) & 0x8000)
+        {
+            RIGHT_KEY = true;
+        }
+        if (GetKeyState(0x57) & 0x8000) //W key
+        {
+            W_KEY = true;
+        }
+        if (GetKeyState(0x41) & 0x8000)  //A key
+        {
+            A_KEY = true;
+        }
+        if (GetKeyState(0x53) & 0x8000) //S key
+        {
+            S_KEY = true;
+        }
+        if (GetKeyState(0x44) & 0x8000) //D key
+        {
+            D_KEY = true;
+        }
+        if (GetKeyState(0x5A) & 0x8000) //Z key
+        {
+            Z_KEY = true;
+        }
+        if (GetKeyState(0x43) & 0x8000) //C key
+        {
+            C_KEY = true;
         }
     }
     return 0;

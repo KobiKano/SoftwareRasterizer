@@ -34,8 +34,9 @@ template <class t> struct Vec3
 	//vector operations
 	inline Vec3<t> cross(const Vec3<t>& v) const { return Vec3<t>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x); } //cross product
 	inline t dot(const Vec3<t>& v) const { return (x * v.x + y * v.y + z * v.z); } //dot product
-	float value() const { return sqrt(x * x + y * y + z * z); }
-	Vec3<t>& norm() const { return *this / this->value(); }
+	float dist(const Vec3<t> v) const { return sqrtf(powf((v.x - x), 2) + powf((v.y - y), 2) + powf((v.z - z), 2)); }
+	float value() const { return sqrtf(x * x + y * y + z * z); }
+	Vec3<t> norm() const { return *this / this->value(); }
 
 	//to_string
 	std::string to_string() { return "0: " + std::to_string(x) + "\n1: " + std::to_string(y) + "\n2: " + std::to_string(z) + "\n"; }
@@ -95,7 +96,37 @@ struct Mat4x4f
 		}
 	}
 
+	//4x4 matrix multiplication
+	inline Mat4x4f operator *(const Mat4x4f& m) const
+	{
+		Mat4x4f out;
+
+		//just gonna hard code this
+		out.val[0][0] = val[0][0] * m.val[0][0] + val[0][1] * m.val[1][0] + val[0][2] * m.val[2][0] + val[0][3] * m.val[3][0];
+		out.val[0][1] = val[0][0] * m.val[0][1] + val[0][1] * m.val[1][1] + val[0][2] * m.val[2][1] + val[0][3] * m.val[3][1];
+		out.val[0][2] = val[0][0] * m.val[0][2] + val[0][1] * m.val[1][2] + val[0][2] * m.val[2][2] + val[0][3] * m.val[3][2];
+		out.val[0][3] = val[0][0] * m.val[0][3] + val[0][1] * m.val[1][3] + val[0][2] * m.val[2][3] + val[0][3] * m.val[3][3];
+
+		out.val[1][0] = val[1][0] * m.val[0][0] + val[1][1] * m.val[1][0] + val[1][2] * m.val[2][0] + val[1][3] * m.val[3][0];
+		out.val[1][1] = val[1][0] * m.val[0][1] + val[1][1] * m.val[1][1] + val[1][2] * m.val[2][1] + val[1][3] * m.val[3][1];
+		out.val[1][2] = val[1][0] * m.val[0][2] + val[1][1] * m.val[1][2] + val[1][2] * m.val[2][2] + val[1][3] * m.val[3][2];
+		out.val[1][3] = val[1][0] * m.val[0][3] + val[1][1] * m.val[1][3] + val[1][2] * m.val[2][3] + val[1][3] * m.val[3][3];
+
+		out.val[2][0] = val[2][0] * m.val[0][0] + val[2][1] * m.val[1][0] + val[2][2] * m.val[2][0] + val[2][3] * m.val[3][0];
+		out.val[2][1] = val[2][0] * m.val[0][1] + val[2][1] * m.val[1][1] + val[2][2] * m.val[2][1] + val[2][3] * m.val[3][1];
+		out.val[2][2] = val[2][0] * m.val[0][2] + val[2][1] * m.val[1][2] + val[2][2] * m.val[2][2] + val[2][3] * m.val[3][2];
+		out.val[2][3] = val[2][0] * m.val[0][3] + val[2][1] * m.val[1][3] + val[2][2] * m.val[2][3] + val[2][3] * m.val[3][3];
+
+		out.val[3][0] = val[3][0] * m.val[0][0] + val[3][1] * m.val[1][0] + val[3][2] * m.val[2][0] + val[3][3] * m.val[3][0];
+		out.val[3][1] = val[3][0] * m.val[0][1] + val[3][1] * m.val[1][1] + val[3][2] * m.val[2][1] + val[3][3] * m.val[3][1];
+		out.val[3][2] = val[3][0] * m.val[0][2] + val[3][1] * m.val[1][2] + val[3][2] * m.val[2][2] + val[3][3] * m.val[3][2];
+		out.val[3][3] = val[3][0] * m.val[0][3] + val[3][1] * m.val[1][3] + val[3][2] * m.val[2][3] + val[3][3] * m.val[3][3];
+
+		return out;
+	}
+
 	//matrix - vector multiplication for vertex transformations
+	//vectors are treated as column vectors i.e. each component is in a different row of the same column (4x1) matrix
 	inline Vec4f operator *(const Vec4f& v) const
 	{ 
 		return Vec4f(val[0][0] * v.x + val[0][1] * v.y + val[0][2] * v.z + val[0][3] * v.w,
