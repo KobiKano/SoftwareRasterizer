@@ -258,7 +258,7 @@ void Model::normalize_verts(float largest)
 void Model::add_normals()
 {
 	log(DEBUG1, "adding normals");
-	if (vert_normals.size() != vertices.size())
+	if (vert_normals.size() == 0)
 	{
 		log(WARNING, "Incorrect mapping of normals to vertices");
 		vert_normals.clear();
@@ -271,7 +271,7 @@ void Model::add_normals()
 		Vec3f center = Vec3f(0.f, 0.f, 0.f);
 		for (auto v : vertices)
 			center = center + v;
-		center = center / 3.f;
+		center = center / (float)vertices.size();
 
 		//add normals(we assume no concavity, thus we approach this with a very greedy solution)
 		//provide normals in obj file if you dont want this problem
@@ -282,11 +282,9 @@ void Model::add_normals()
 			Vec3f B = vertices[faces[i][1].i_vert];
 			Vec3f C = vertices[faces[i][2].i_vert];
 
-			//if the determinant is positive it is counterclockwise, negative is clockwise and 0 is colinear
-			//calc face normal
+			//get the center of the face
 			Vec3f face_center = ((A + B + C)/3.f) - center;
 			
-
 			//use the vector from the center to the face as reference point to determine if cross product
 			//	on the face is pointing outward from center, if angle greater than 90 degrees, use other cross product
 			Vec3f norm = (B - A).cross(C - A);

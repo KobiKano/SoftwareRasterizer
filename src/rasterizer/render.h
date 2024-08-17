@@ -26,6 +26,8 @@ public:
 	void rot_down();
 	void roll_left();
 	void roll_right();
+	void raise();
+	void lower();
 	void zoom_in(float step);
 	void zoom_out(float step);
 	void left(float step);
@@ -38,7 +40,10 @@ public:
 	void rot_down(float step);
 	void roll_left(float step);
 	void roll_right(float step);
-	Mat4x4f gen_mat();
+	void raise(float step);
+	void lower(float step);
+	Mat4x4f gen_vert_mat();
+	Mat4x4f gen_norm_mat();
 private:
 	float step;
 	Vec3f pos;
@@ -90,11 +95,9 @@ private:
 	Camera cam;
 	bool wireframe;
 
-	void cull(int model_i, std::vector<int>& face_i, std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms);
+	void cull(std::vector<Vec3f>& f_norms, std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms);
 	void rotate(Vec3f& old, int i);
-	void translate(Vec3f &old, int i);
-	void scale(Vec3f& old, int i);
-	void clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms, std::vector<int>& face_i);
+	void clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms, std::vector<Vec3f>& f_norms);
 	void clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms);
 	void projection(std::vector<Triangle> &t_draws);
 	void triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color);

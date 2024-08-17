@@ -28,17 +28,35 @@ Camera::Camera(float step)
 *			and the camera projection matrix (which rotates a point in space such that the axis of the camera line up with the cartesian axis)
 * @return: inverted point at matrix
 */
-Mat4x4f Camera::gen_mat()
+Mat4x4f Camera::gen_vert_mat()
 {
-	//lookat rotation
-	 float r[4][4] = 
+	//lookat rotation and translation
+	 float rt[4][4] = 
 	   {{v_right.x, v_right.y, v_right.z, -pos.dot(v_right)},
 		{v_up.x, v_up.y, v_up.z,  -pos.dot(v_up)},
 		{dir.x, dir.y, dir.z,  -pos.dot(dir)},
 		{0.f, 0.f, 0.f, 1.f}};
 
 	 //return matrix product of matrices for full transformation
-	 return Mat4x4f(r);
+	 return Mat4x4f(rt);
+}
+
+/**
+* Same as vertices minus translation
+* Want to rotate normal vectors so that their direction is relative to the new origin (camera axis)
+* @return: inverted point at matrix without translation
+*/
+Mat4x4f Camera::gen_norm_mat()
+{
+	//lookat rotation
+	float r[4][4] =
+	{ {v_right.x, v_right.y, v_right.z, 0.f},
+	 {v_up.x, v_up.y, v_up.z,  -0.f},
+	 {dir.x, dir.y, dir.z,  -0.f},
+	 {0.f, 0.f, 0.f, 1.f} };
+
+	//return matrix product of matrices for full transformation
+	return Mat4x4f(r);
 }
 
 /**
@@ -127,27 +145,35 @@ void Camera::rot_right()
 }
 void Camera::rot_up()
 {
-	quaternion_mult(dir, v_right, -step);
-	quaternion_mult(v_up, v_right, -step);
-	force_align(dir, v_up, v_right);
-}
-void Camera::rot_down()
-{
 	quaternion_mult(dir, v_right, step);
 	quaternion_mult(v_up, v_right, step);
 	force_align(dir, v_up, v_right);
 }
+void Camera::rot_down()
+{
+	quaternion_mult(dir, v_right, -step);
+	quaternion_mult(v_up, v_right, -step);
+	force_align(dir, v_up, v_right);
+}
 void Camera::roll_left()
+{
+	quaternion_mult(v_right, dir, step);
+	quaternion_mult(v_up, dir, step);
+	force_align(dir, v_up, v_right);
+}
+void Camera::roll_right()
 {
 	quaternion_mult(v_right, dir, -step);
 	quaternion_mult(v_up, dir, -step);
 	force_align(dir, v_up, v_right);
 }
-void Camera::roll_right()
+void Camera::raise()
 {
-	quaternion_mult(v_right, dir, step);
-	quaternion_mult(v_up, dir, step);
-	force_align(dir, v_up, v_right);
+	pos = pos - (v_up * step);
+}
+void Camera::lower()
+{
+	pos = pos + (v_up * step);
 }
 /**********************************************/
 void Camera::zoom_in(float step)
@@ -188,26 +214,34 @@ void Camera::rot_right(float step)
 }
 void Camera::rot_up(float step)
 {
-	quaternion_mult(dir, Vec3f(1.f, 0.f, 0.f), step);
-	quaternion_mult(v_up, Vec3f(1.f, 0.f, 0.f), step);
-	force_align(dir, v_up, v_right);
-}
-void Camera::rot_down(float step)
-{
 	quaternion_mult(dir, Vec3f(1.f, 0.f, 0.f), -step);
 	quaternion_mult(v_up, Vec3f(1.f, 0.f, 0.f), -step);
 	force_align(dir, v_up, v_right);
 }
+void Camera::rot_down(float step)
+{
+	quaternion_mult(dir, Vec3f(1.f, 0.f, 0.f), step);
+	quaternion_mult(v_up, Vec3f(1.f, 0.f, 0.f), step);
+	force_align(dir, v_up, v_right);
+}
 void Camera::roll_left(float step)
+{
+	quaternion_mult(v_right, dir, step);
+	quaternion_mult(v_up, dir, step);
+	force_align(dir, v_up, v_right);
+}
+void Camera::roll_right(float step)
 {
 	quaternion_mult(v_right, dir, -step);
 	quaternion_mult(v_up, dir, -step);
 	force_align(dir, v_up, v_right);
 }
-void Camera::roll_right(float step)
+void Camera::raise(float step)
 {
-	quaternion_mult(v_right, dir, step);
-	quaternion_mult(v_up, dir, step);
-	force_align(dir, v_up, v_right);
+	pos = pos - (v_up * step);
+}
+void Camera::lower(float step)
+{
+	pos = pos + (v_up * step);
 }
 

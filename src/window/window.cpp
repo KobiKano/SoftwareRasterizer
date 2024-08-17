@@ -24,6 +24,8 @@ volatile bool S_KEY = false;
 volatile bool D_KEY = false;
 volatile bool Z_KEY = false;
 volatile bool C_KEY = false;
+volatile bool SHIFT_KEY = false;
+volatile bool TAB_KEY = false;
 volatile bool g_alive = false;
 volatile bool g_exit_error = false;
 volatile bool g_resize = false;
@@ -188,6 +190,14 @@ LRESULT CALLBACK window_proc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (GetKeyState(0x43) & 0x8000) //C key
         {
             C_KEY = true;
+        }
+        if (GetKeyState(VK_SHIFT) & 0x8000)
+        {
+            SHIFT_KEY = true;
+        }
+        if (GetKeyState(VK_TAB) & 0x8000)
+        {
+            TAB_KEY = true;
         }
     }
     return 0;
