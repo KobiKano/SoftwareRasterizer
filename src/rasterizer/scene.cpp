@@ -329,151 +329,11 @@ void Scene::process_inputs()
 		SHIFT_KEY = false;
 	}
 }
-/**
-* Draws all models to the screen
-*/
-void Scene::draw()
-{
-	//get camera matrices
-	Mat4x4f vert_cam_mat = cam.gen_vert_mat();
-	Mat4x4f norm_cam_mat = cam.gen_norm_mat();
 
-	//iterate through each model
-	for (int i = 0; i < models.size(); i++)
-	{
-		//get faces, vertices, and normals
-		std::vector<std::vector<Vec3i>> faces = models[i].get()->get_faces();
-		std::vector<Vec3f> vertices = models[i].get()->get_vertices();
-		std::vector<Vec3f> v_normals = models[i].get()->get_vert_normals();
-		std::vector<Vec3f> f_normals = models[i].get()->get_face_normals();
-		std::vector<Triangle> t_draws;
-		std::vector<Triangle> t_norms;
-		std::vector<Vec3f> f_norms;
-		Mat4x4f local_to_world = scales[i] * translates[i];
-		for (int j = 0; j < faces.size(); j++)
-		{
-			//translate vertices
-			Triangle t_draw;
-			Triangle t_norm;
-			Vec3f    f_norm = f_normals[j];
-			for (int k = 0; k < 3; k++)
-			{
-				//all vertices should be within [-1, 1] range on all axis
-				Vec3f vertex = vertices[faces[j][k].i_vert];
-				Vec3f norm = v_normals[faces[j][k].i_norm];
-				//rotate object
-				rotate(vertex, i);
-				rotate(norm, i);
+/*******************************************************************************
+* static helper functions for draw routine
+*******************************************************************************/
 
-				//translate to world coords
-				vertex = Vec3f(local_to_world * Vec4f(vertex));
-
-				//translate based on camera pos
-				vertex = Vec3f(vert_cam_mat * Vec4f(vertex));
-				norm = Vec3f(norm_cam_mat * Vec4f(norm));
-
-				//add to draw list
-				t_draw.raw[k] = vertex;
-				t_norm.raw[k] = norm;
-			}
-			//get new face normal
-			rotate(f_norm, i);
-			f_norm = Vec3f(norm_cam_mat * Vec4f(f_norm));
-
-			//otherwise add triangles to draw list
-			t_draws.push_back(t_draw);
-			t_norms.push_back(t_norm);
-			f_norms.push_back(f_norm);
-		}
-
-		//clip over z bounds
-		//clip_z(t_draws, t_norms, f_norms);
-
-		//check if face can be culled (face is facing away from viewpoint)
-		cull(f_norms, t_draws, t_norms);
-
-		//project triangle to screen coords
-		projection(t_draws);
-
-		//clip over x and y bounds
-		//clip_xy(t_draws, t_norms);
-
-
-		//draw all triangles
-		if (t_draws.size() != t_norms.size())
-		{
-			log(ERR, "Error occured drawing model... Incorrect triangle or vertex normal count... skipping");
-			continue;
-		}
-		for (int j = 0; j < t_draws.size(); j++)
-			triangle_to_screen(t_draws[j], t_norms[j], models[i].get()->get_color());
-	}
-}
-
-/********************************************************************
-* Private Functions
-********************************************************************/
-/**
-* Check if face can be culled
-* If the face a facing completely away from the camera, then we ignore it
-* Otherwise proceed with draw
-* @param model_i: index of model
-* @param face_i: index of face
-* @param t_draws: traingles to draw
-* @param t_norms: triangle normals
-*/
-void Scene::cull(std::vector<Vec3f> &f_norms, std::vector<Triangle> &t_draws, std::vector<Triangle> &t_norms)
-{
-	//get the face normal to check
-	std::vector<Triangle> new_draws;
-	std::vector<Triangle> new_norms;
-	std::vector<Vec3f>    new_f_norms;
-	for (int i = 0; i < t_draws.size(); i++)
-	{
-		Vec3f face_n = f_norms[i];
-
-		//determine the vector pointing from the camera to this face
-		//get center of face
-		Vec3f center;
-		for (int j = 0; j < 3; j++)
-		{
-			center = center + t_draws[i].raw[j];
-		}
-		center = center / 3.f;
-		Vec3f face_to_cam = Vec3f(0.f, 0.f, 0.f) - center;  //camera position is 0 relative to object because of transform
-
-		//if the dot product between the camera and normal is less than 90 degrees, then we can draw
-		if (face_to_cam.norm().dot(face_n.norm()) >= 0.f)
-		{
-			new_draws.push_back(t_draws[i]);
-			new_norms.push_back(t_norms[i]);
-		}
-
-		//else we don't need to draw since face can't be seen
-	}
-	//redirect t_draws and t_norms to new vectors
-	t_draws.clear();
-	t_norms.clear();
-	t_draws = new_draws;
-	t_norms = new_draws;
-}
-
-/**
-* Rotates an object based off rotation matrix
-* Object should be centered around origin at this point
-* @param old: vertex data to modify
-* @param i: index of rotation matrix
-*/
-void Scene::rotate(Vec3f &old, int i)
-{
-	//iterate through each rotation on 
-	for (int j = 0; j < 3; j++)
-	{
-		Quaternion q = rotates[i].raw[rotates[i].order[j]];
-		Quaternion q_neg = q.conjugate();
-		old = (Vec3f)(q * Quaternion(old) * q_neg);
-	}
-}
 
 /*
 * Helper funtion to return point at which a line intersects a plane
@@ -507,7 +367,7 @@ static Vec3f intersect_plane(Vec3f plane_p, Vec3f plane_n, Vec3f p0, Vec3f p1)
 * @param out_n2: possible vertex normals of output 2
 * @return: number of output triangles
 */
-static int clip(Vec3f &plane_p, Vec3f &plane_n, Triangle &in, Triangle &in_n, Triangle &out1, Triangle &out2, Triangle &out_n1, Triangle &out_n2)
+static int clip(Vec3f& plane_p, Vec3f& plane_n, Triangle& in, Triangle& in_n, Triangle& out1, Triangle& out2, Triangle& out_n1, Triangle& out_n2)
 {
 	//ensure plane normal is normalized
 	plane_n = plane_n.norm();
@@ -515,9 +375,9 @@ static int clip(Vec3f &plane_p, Vec3f &plane_n, Triangle &in, Triangle &in_n, Tr
 	//auto funcntion to determine signed distance from point to plane
 	//allows to determine if point on inside or outside of view box
 	auto dist = [&](Vec3f& p)
-	{
-		return (plane_n.x * p.x + plane_n.y * p.y + plane_n.z * p.z - plane_n.dot(plane_p));
-	};
+		{
+			return ((p - plane_p).dot(plane_n));
+		};
 
 	//tmp storage of inside and outside points in triangle
 	Vec3f* in_p[3]; Vec3f* in_n_p[3];  int num_in_p = 0;
@@ -527,7 +387,7 @@ static int clip(Vec3f &plane_p, Vec3f &plane_n, Triangle &in, Triangle &in_n, Tr
 	float d[3] = { dist(in.raw[0]), dist(in.raw[1]), dist(in.raw[2]) };
 	for (int i = 0; i < 3; i++)
 	{
-		if (d[i] >= 0)
+		if (d[i] >= 0.f)
 		{
 			in_n_p[num_in_p] = &in_n.raw[i];
 			in_p[num_in_p++] = &in.raw[i];
@@ -610,41 +470,45 @@ static int clip(Vec3f &plane_p, Vec3f &plane_n, Triangle &in, Triangle &in_n, Tr
 * @param t_draws: vector of triangles to draw
 * @param t_norms: vector of vertex normals for each triangle
 */
-void Scene::clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms, std::vector<Vec3f>& f_norms)
+static void clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms, std::vector<Vec3f>& f_norms, float z_near, float z_far)
 {
 	std::vector<Triangle> new_draws;
 	std::vector<Triangle> new_norms;
 	std::vector<Vec3f> new_f_norms;
 
 	//get near and far plane
-	Vec3f plane_p_near = Vec3f(0.f, 0.f, proj_mat.znear);
-	Vec3f plane_p_far = Vec3f(0.f, 0.f, proj_mat.zfar);
+	Vec3f plane_p_near = Vec3f(0.f, 0.f, z_near);
+	Vec3f plane_p_far = Vec3f(0.f, 0.f, z_far);
 	Vec3f plane_n_near = Vec3f(0.f, 0.f, 1.f);
 	Vec3f plane_n_far = Vec3f(0.f, 0.f, -1.f);
 	for (int i = 0; i < t_draws.size(); i++)
 	{
-		Triangle out[2];
-		Triangle out_n[2];
-		int num;
+		Triangle out_near[2], out_far[2];
+		Triangle out_n_near[2], out_n_far[2];
+		int num_near, num_far;
+
+		/**************************************************************************************************
+		* This is a faster but much harder to read way of doing this
+		* This costs more memory but is significantly faster in some cases
+		* The easiest way would be to iterate over every single face once per clip plane, but we can do it
+		*	faster by doing it this way
+		* We take the clipped(or unclipped) triangles from the near clip and see if they need to be
+		*	clipped in the far plane.  After determining clipping on both they are added to our new list.
+		**************************************************************************************************/
 
 		//clip near plane
-		num = clip(plane_p_near, plane_n_near, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
-		for (int j = 0; j < num; j++)
+		num_near = clip(plane_p_near, plane_n_near, t_draws[i], t_norms[i], out_near[0], out_near[1], out_n_near[0], out_n_near[1]);
+		for (int j = 0; j < num_near; j++)
 		{
-			//add to output
-			new_draws.push_back(out[j]);
-			new_norms.push_back(out_n[j]);
-			new_f_norms.push_back(f_norms[i]);
-		}
-
-		//clip far plane
-		num = clip(plane_p_far, plane_n_far, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
-		for (int j = 0; j < num; j++)
-		{
-			//add to output
-			new_draws.push_back(out[j]);
-			new_norms.push_back(out_n[j]);
-			new_f_norms.push_back(f_norms[i]);
+			//clip far plane
+			num_far = clip(plane_p_far, plane_n_far, out_near[j], out_n_near[j], out_far[0], out_far[1], out_n_far[0], out_n_far[1]);
+			for (int k = 0; k < num_far; k++)
+			{
+				//add to output
+				new_draws.push_back(out_far[k]);
+				new_norms.push_back(out_n_far[k]);
+				new_f_norms.push_back(f_norms[i]);
+			}
 		}
 	}
 
@@ -661,60 +525,57 @@ void Scene::clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norm
 * @param t_draws: vector of triangles to draw
 * @param t_norms: vector of vertex normals for each triangle
 */
-void Scene::clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms)
+static void clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms)
 {
 	std::vector<Triangle> new_draws;
 	std::vector<Triangle> new_norms;
 
 	//get near and far plane
-	Vec3f plane_p_x0 = Vec3f(0.f, 0.f, -1.f);
-	Vec3f plane_p_x1 = Vec3f(0.f, 0.f, 1.f);
-	Vec3f plane_n_x0 = Vec3f(0.f, 0.f, 1.f);
-	Vec3f plane_n_x1 = Vec3f(0.f, 0.f, -1.f);
-	Vec3f plane_p_y0 = Vec3f(0.f, 0.f, -1.f);
-	Vec3f plane_p_y1 = Vec3f(0.f, 0.f, 1.f);
-	Vec3f plane_n_y0 = Vec3f(0.f, 0.f, 1.f);
-	Vec3f plane_n_y1 = Vec3f(0.f, 0.f, -1.f);
+	Vec3f plane_p_x0 = Vec3f(-0.9f, 0.f, 0.f);
+	Vec3f plane_p_x1 = Vec3f(0.9f, 0.f, 0.f);
+	Vec3f plane_n_x0 = Vec3f(0.9f, 0.f, 0.f);
+	Vec3f plane_n_x1 = Vec3f(-0.9f, 0.f, 0.f);
+	Vec3f plane_p_y0 = Vec3f(0.f, -0.9f, 0.f);
+	Vec3f plane_p_y1 = Vec3f(0.f, 0.9f, 0.f);
+	Vec3f plane_n_y0 = Vec3f(0.f, 0.9f, 0.f);
+	Vec3f plane_n_y1 = Vec3f(0.f, -0.9f, 0.f);
 	for (int i = 0; i < t_draws.size(); i++)
 	{
-		Triangle out[2];
-		Triangle out_n[2];
-		int num;
+		Triangle out_x0[2], out_x1[2], out_y0[2], out_y1[2];
+		Triangle out_n_x0[2], out_n_x1[2], out_n_y0[2], out_n_y1[2];
+		int num_x0, num_x1, num_y0, num_y1;
+
+		/**************************************************************************************************
+		* This is a faster but much harder to read way of doing this
+		* This costs more memory but is significantly faster in some cases
+		* The easiest way would be to iterate over every single face once per clip plane, but we can do it
+		*	faster by doing it this way
+		* We take the clipped(or unclipped) triangles from the each clip and see if they need to be
+		*	clipped in the next plane.  After determining clipping on both they are added to our new list.
+		**************************************************************************************************/
 
 		//clip x0 plane
-		num = clip(plane_p_x0, plane_n_x0, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
-		for (int j = 0; j < num; j++)
+		num_x0 = clip(plane_p_x0, plane_n_x0, t_draws[i], t_norms[i], out_x0[0], out_x0[1], out_n_x0[0], out_n_x0[1]);
+		for (int j = 0; j < num_x0; j++)
 		{
-			//add to output
-			new_draws.push_back(out[j]);
-			new_norms.push_back(out_n[j]);
-		}
-
-		//clip x1 plane
-		num = clip(plane_p_x1, plane_n_x1, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
-		for (int j = 0; j < num; j++)
-		{
-			//add to output
-			new_draws.push_back(out[j]);
-			new_norms.push_back(out_n[j]);
-		}
-
-		//clip y0 plane
-		num = clip(plane_p_y0, plane_n_y0, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
-		for (int j = 0; j < num; j++)
-		{
-			//add to output
-			new_draws.push_back(out[j]);
-			new_norms.push_back(out_n[j]);
-		}
-
-		//clip y1 plane
-		num = clip(plane_p_y1, plane_n_y1, t_draws[i], t_norms[i], out[0], out[1], out_n[0], out_n[1]);
-		for (int j = 0; j < num; j++)
-		{
-			//add to output
-			new_draws.push_back(out[j]);
-			new_norms.push_back(out_n[j]);
+			//clip x1 plane
+			num_x1 = clip(plane_p_x1, plane_n_x1, out_x0[j], out_n_x0[j], out_x1[0], out_x1[1], out_n_x1[0], out_n_x1[1]);
+			for (int k = 0; k < num_x1; k++)
+			{
+				//clip y0 plane
+				num_y0 = clip(plane_p_y0, plane_n_y0, out_x1[k], out_n_x1[k], out_y0[0], out_y0[1], out_n_y0[0], out_n_y0[1]);
+				for (int l = 0; l < num_y0; l++)
+				{
+					//clip y1 plane
+					num_y1 = clip(plane_p_y1, plane_n_y1, out_y0[l], out_n_y0[l], out_y1[0], out_y1[1], out_n_y1[0], out_n_y1[1]);
+					for (int m = 0; m < num_y1; m++)
+					{
+						//add to output
+						new_draws.push_back(out_y1[m]);
+						new_norms.push_back(out_n_y1[m]);
+					}
+				}
+			}
 		}
 	}
 
@@ -723,6 +584,150 @@ void Scene::clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_nor
 	t_norms.clear();
 	t_draws = new_draws;
 	t_norms = new_norms;
+}
+/**
+* Draws all models to the screen
+*/
+void Scene::draw()
+{
+	//get camera matrices
+	Mat4x4f vert_cam_mat = cam.gen_vert_mat();
+	Mat4x4f norm_cam_mat = cam.gen_norm_mat();
+
+	//iterate through each model
+	for (int i = 0; i < models.size(); i++)
+	{
+		//get faces, vertices, and normals
+		std::vector<std::vector<Vec3i>> faces = models[i].get()->get_faces();
+		std::vector<Vec3f> vertices = models[i].get()->get_vertices();
+		std::vector<Vec3f> v_normals = models[i].get()->get_vert_normals();
+		std::vector<Vec3f> f_normals = models[i].get()->get_face_normals();
+		std::vector<Triangle> t_draws;
+		std::vector<Triangle> t_norms;
+		std::vector<Vec3f> f_norms;
+		Mat4x4f local_to_world = scales[i] * translates[i];
+		for (int j = 0; j < faces.size(); j++)
+		{
+			//translate vertices
+			Triangle t_draw;
+			Triangle t_norm;
+			Vec3f    f_norm = f_normals[j];
+			for (int k = 0; k < 3; k++)
+			{
+				//all vertices should be within [-1, 1] range on all axis
+				Vec3f vertex = vertices[faces[j][k].i_vert];
+				Vec3f norm = v_normals[faces[j][k].i_norm];
+				//rotate object
+				rotate(vertex, i);
+				rotate(norm, i);
+
+				//translate to world coords
+				vertex = Vec3f(local_to_world * Vec4f(vertex));
+
+				//translate based on camera pos
+				vertex = Vec3f(vert_cam_mat * Vec4f(vertex));
+				norm = Vec3f(norm_cam_mat * Vec4f(norm));
+
+				//add to draw list
+				t_draw.raw[k] = vertex;
+				t_norm.raw[k] = norm;
+			}
+			//get new face normal
+			rotate(f_norm, i);
+			f_norm = Vec3f(norm_cam_mat * Vec4f(f_norm));
+
+			//otherwise add triangles to draw list
+			t_draws.push_back(t_draw);
+			t_norms.push_back(t_norm);
+			f_norms.push_back(f_norm);
+		}
+
+		//clip over z bounds
+		clip_z(t_draws, t_norms, f_norms, proj_mat.znear, proj_mat.zfar);
+
+		//check if face can be culled (face is facing away from viewpoint)
+		cull(f_norms, t_draws, t_norms);
+
+		//project triangle to screen coords
+		projection(t_draws);
+
+		//clip over x and y bounds
+		clip_xy(t_draws, t_norms);
+
+		//draw all triangles
+		if (t_draws.size() != t_norms.size())
+		{
+			log(ERR, "Error occured drawing model... Incorrect triangle or vertex normal count... skipping");
+			continue;
+		}
+		for (int j = 0; j < t_draws.size(); j++)
+			triangle_to_screen(t_draws[j], t_norms[j], models[i].get()->get_color());
+	}
+}
+
+/********************************************************************
+* Private Functions
+********************************************************************/
+/**
+* Check if face can be culled
+* If the face a facing completely away from the camera, then we ignore it
+* Otherwise proceed with draw
+* @param model_i: index of model
+* @param face_i: index of face
+* @param t_draws: traingles to draw
+* @param t_norms: triangle normals
+*/
+void Scene::cull(std::vector<Vec3f> &f_norms, std::vector<Triangle> &t_draws, std::vector<Triangle> &t_norms)
+{
+	//get the face normal to check
+	std::vector<Triangle> new_draws;
+	std::vector<Triangle> new_norms;
+	std::vector<Vec3f>    new_f_norms;
+	for (int i = 0; i < t_draws.size(); i++)
+	{
+		Vec3f face_n = f_norms[i];
+
+		//determine the vector pointing from the camera to this face
+		//get center of face
+		Vec3f center;
+		for (int j = 0; j < 3; j++)
+		{
+			center = center + t_draws[i].raw[j];
+		}
+		center = center / 3.f;
+		Vec3f face_to_cam = Vec3f(0.f, 0.f, 0.f) - center;  //camera position is 0 relative to object because of transform
+
+		//if the dot product between the camera and normal is less than 90 degrees, then we can draw
+		if (face_to_cam.norm().dot(face_n.norm()) >= 0.f)
+		{
+			new_draws.push_back(t_draws[i]);
+			new_norms.push_back(t_norms[i]);
+		}
+
+		//else we don't need to draw since face can't be seen
+	}
+	//redirect t_draws and t_norms to new vectors
+	t_draws.clear();
+	t_norms.clear();
+	t_draws = new_draws;
+	t_norms = new_draws;
+}
+
+/**
+* Rotates an object based off rotation matrix
+* Object should be centered around origin at this point
+* @param old: vertex data to modify
+* @param i: index of rotation matrix
+*/
+void Scene::rotate(Vec3f &old, int i)
+{
+	//iterate through each rotation on 
+	for (int j = 0; j < 3; j++)
+	{
+		Quaternion q = rotates[i].raw[rotates[i].order[j]];
+		Quaternion q_neg = q.conjugate();
+		old = (Vec3f)(q * Quaternion(old) * q_neg);
+	}
 }
 /**
 * Projects input vertices to screen space(adds for depth)
@@ -750,7 +755,7 @@ void Scene::projection(std::vector<Triangle>& t_draws)
 * @param t_norm: normal vectors of vertices in triangle
 * @param color: color to use in draw
 */
-void Scene::triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color)
+void Scene::triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color) const
 {
 	//assume z values to be between 0 and 1, values outside of range will just not be drawn
 	//assume x and y values in range [-1, 1]

@@ -97,8 +97,6 @@ private:
 
 	void cull(std::vector<Vec3f>& f_norms, std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms);
 	void rotate(Vec3f& old, int i);
-	void clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms, std::vector<Vec3f>& f_norms);
-	void clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms);
 	void projection(std::vector<Triangle> &t_draws);
-	void triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color);
+	void triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color) const;
 };
