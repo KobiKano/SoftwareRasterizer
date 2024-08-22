@@ -76,6 +76,7 @@ public:
 	void set_z_bound(float zfar, float znear);
 	void set_fov(float fov_rad);
 	void set_wireframe(bool b);
+	void set_cam_light(bool b);
 	int add_light(Vec3f &p);
 private:
 	struct ProjMat
@@ -94,9 +95,10 @@ private:
 	ProjMat proj_mat;
 	Camera cam;
 	bool wireframe;
+	bool cam_light;
 
 	void cull(std::vector<Vec3f>& f_norms, std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms);
 	void rotate(Vec3f& old, int i);
 	void projection(std::vector<Triangle> &t_draws);
-	void triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color) const;
+	void triangle_to_screen(Triangle &t_draw, Triangle &t_norm, Triangle& t_world, std::vector<Vec3f> lights, COLOR color) const;
 };

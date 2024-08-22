@@ -180,7 +180,7 @@ Model::~Model()
 * Setter for color of model
 * @param color: hex value of color to set
 */
-void Model::set_color(PIXEL color)
+void Model::set_color(COLOR color)
 {
 	this->color = color;
 }
@@ -188,7 +188,7 @@ void Model::set_color(PIXEL color)
 * Getter for color of model
 * @return: hex value of model color
 */
-PIXEL Model::get_color() const
+COLOR Model::get_color() const
 {
 	return color;
 }
@@ -261,12 +261,6 @@ void Model::add_normals()
 	if (vert_normals.size() == 0)
 	{
 		log(WARNING, "Incorrect mapping of normals to vertices");
-		vert_normals.clear();
-		vert_normals.resize(vertices.size());
-		face_normals.resize(faces.size());
-		//set all values of vert_normals to zero
-		std::fill(vert_normals.begin(), vert_normals.end(), Vec3f(0.f, 0.f, 0.f));
-
 		//get center of model
 		Vec3f center = Vec3f(0.f, 0.f, 0.f);
 		for (auto v : vertices)
@@ -289,13 +283,13 @@ void Model::add_normals()
 			//	on the face is pointing outward from center, if angle greater than 90 degrees, use other cross product
 			Vec3f norm = (B - A).cross(C - A);
 			norm = (norm.dot(face_center) >= 0.f) ? norm : (C - A).cross(B - A);
-			face_normals[i] = norm.norm();
+			face_normals.push_back(norm.norm());
 
 			//want to add the normal value of the face to each vertex normal to find total normal
 			for (int j = 0; j < faces[i].size(); j++)
 			{
-				faces[i][j].i_norm = faces[i][j].i_vert;
-				vert_normals[faces[i][j].i_norm] = vert_normals[faces[i][j].i_norm] + face_normals[i];
+				faces[i][j].i_norm = vert_normals.size();
+				vert_normals.push_back(face_normals[i]);
 			}
 		}
 	}

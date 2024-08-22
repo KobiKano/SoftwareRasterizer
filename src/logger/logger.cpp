@@ -12,6 +12,8 @@ void logger_set_level(LEVEL level)
 
 void log(LEVEL level, std::string msg)
 {
+	//if not in debug mode do nothing
+#ifdef _DEBUG
 	//check if logger level is higher than given level
 	if (level < _level)
 		return; //do nothing
@@ -32,4 +34,5 @@ void log(LEVEL level, std::string msg)
 		fprintf(stderr, "___ERROR___: %s\n", msg.c_str());
 		return;
 	}
+#endif
 }

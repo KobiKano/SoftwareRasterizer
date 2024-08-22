@@ -51,8 +51,9 @@ Scene::Scene()
 	float h = (float)get_buf_height();
 	this->set_projection(PI / 2, 10.f, 1.f, h / w);
 
-	//default to wireframe
+	//default to wireframe and cam_light
 	wireframe = true;
+	cam_light = true;
 }
 Scene::~Scene()
 {
@@ -152,6 +153,14 @@ void Scene::set_fov(float fov_rad)
 void Scene::set_wireframe(bool b)
 {
 	wireframe = b;
+}
+/**
+* Sets cam_light mode
+* @param b: bool value to set
+*/
+void Scene::set_cam_light(bool b)
+{
+	cam_light = b;
 }
 /**
 * Adds pitch to object rotation
@@ -357,6 +366,7 @@ static Vec3f intersect_plane(Vec3f plane_p, Vec3f plane_n, Vec3f p0, Vec3f p1)
 
 /**
 * Helper function to clip a triangle over a given plane
+* This version doesnt modify a third pre-projection triangle
 * @param plane_p position of plane
 * @param plane_n normal vector of plane
 * @param in: triangle to clip
@@ -380,8 +390,8 @@ static int clip(Vec3f& plane_p, Vec3f& plane_n, Triangle& in, Triangle& in_n, Tr
 		};
 
 	//tmp storage of inside and outside points in triangle
-	Vec3f* in_p[3]; Vec3f* in_n_p[3];  int num_in_p = 0;
-	Vec3f* out_p[3]; Vec3f* out_n_p[3];  int num_out_p = 0;
+	Vec3f* in_p[3]; Vec3f* in_n_p[3]; int num_in_p = 0;
+	Vec3f* out_p[3]; Vec3f* out_n_p[3]; int num_out_p = 0;
 
 	//determine signed distance for each vertex of triangle
 	float d[3] = { dist(in.raw[0]), dist(in.raw[1]), dist(in.raw[2]) };
@@ -421,17 +431,17 @@ static int clip(Vec3f& plane_p, Vec3f& plane_n, Triangle& in, Triangle& in_n, Tr
 		out2 = Triangle(p1, *in_p[1], p2);
 
 		//push normal vector of clipped points towards inner points by ratio of distance clipped to distance
-		float r_d1 = p1.dist(*in_p[0]) / in_p[0]->dist(*out_p[0]);
+		float r_d1 = p1.dist(*in_p[0]) / in_p[0]->dist(*out_p[0]);  //ratio of distance
 		float r_d2 = p2.dist(*in_p[1]) / in_p[1]->dist(*out_p[0]);
 
-		Vec3f d_in_out1 = *in_n_p[0] - *out_n_p[0];
+		Vec3f d_in_out1 = *in_n_p[0] - *out_n_p[0]; //change in normal
 		Vec3f d_in_out2 = *in_n_p[1] - *out_n_p[0];
 
-		Vec3f p1_n = *out_n_p[0] + (d_in_out1 * r_d1);
-		Vec3f p2_n = *out_n_p[0] + (d_in_out2 * r_d2);
+		p1 = *out_n_p[0] + (d_in_out1 * r_d1); //new normals
+		p2 = *out_n_p[0] + (d_in_out2 * r_d2);
 
-		out_n1 = Triangle(p1_n, *in_n_p[0], *in_n_p[1]);
-		out_n2 = Triangle(p1_n, *in_n_p[1], p2_n);
+		out_n1 = Triangle(p1, *in_n_p[0], *in_n_p[1]);
+		out_n2 = Triangle(p1, *in_n_p[1], p2);
 
 		return 2;
 	}
@@ -445,16 +455,152 @@ static int clip(Vec3f& plane_p, Vec3f& plane_n, Triangle& in, Triangle& in_n, Tr
 		out1 = Triangle(*in_p[0], p1, p2);
 
 		//push normal vector of clipped points towards inner points by ratio of distance clipped to distance
-		float r_d1 = p1.dist(*out_p[0]) / out_p[0]->dist(*in_p[0]);
+		float r_d1 = p1.dist(*out_p[0]) / out_p[0]->dist(*in_p[0]); //ratio of distance
 		float r_d2 = p2.dist(*out_p[1]) / out_p[1]->dist(*in_p[0]);
 
-		Vec3f d_in_out1 = *in_n_p[0] - *out_n_p[0];
+		Vec3f d_in_out1 = *in_n_p[0] - *out_n_p[0]; //change in normals
 		Vec3f d_in_out2 = *in_n_p[0] - *out_n_p[1];
 
-		Vec3f p1_n = *out_n_p[0] + (d_in_out1 * r_d1);
-		Vec3f p2_n = *out_n_p[1] + (d_in_out2 * r_d2);
+		p1 = *out_n_p[0] + (d_in_out1 * r_d1); //new normals
+		p2 = *out_n_p[1] + (d_in_out2 * r_d2);
 
-		out_n1 = Triangle(*in_n_p[0], p1_n, p2_n);
+		out_n1 = Triangle(*in_n_p[0], p1, p2);
+
+		return 1;
+	}
+	default:
+	{
+		log(ERR, "Error occured in clipping, should never reach this... Ignoring triangle");
+		return 0;
+	}
+	}
+}
+
+/**
+* Helper function to clip a triangle over a given plane
+* @param plane_p position of plane
+* @param plane_n normal vector of plane
+* @param in: triangle to clip
+* @param in_n: vertex normals of triangle
+* @param in_w: pre-projection coords of in triangle
+* @param out1: possible output triangle 1
+* @param out2: possible output triangle 2
+* @param out_n1: possible vertex normals of output 1
+* @param out_n2: possible vertex normals of output 2
+* @param out_w1: possible pre-projection output triangle 1
+* @param out_w2: possible pre-projection output triangle 2
+* @return: number of output triangles
+*/
+static int clip(Vec3f& plane_p, Vec3f& plane_n, Triangle& in, Triangle& in_n, Triangle& in_w, Triangle& out1, Triangle& out2, Triangle& out_n1, Triangle& out_n2, Triangle& out_w1, Triangle& out_w2)
+{
+	//ensure plane normal is normalized
+	plane_n = plane_n.norm();
+
+	//auto funcntion to determine signed distance from point to plane
+	//allows to determine if point on inside or outside of view box
+	auto dist = [&](Vec3f& p)
+		{
+			return ((p - plane_p).dot(plane_n));
+		};
+
+	//tmp storage of inside and outside points in triangle
+	Vec3f* in_p[3]; Vec3f* in_n_p[3]; Vec3f* in_w_p[3]; int num_in_p = 0;
+	Vec3f* out_p[3]; Vec3f* out_n_p[3]; Vec3f* out_w_p[3]; int num_out_p = 0;
+
+	//determine signed distance for each vertex of triangle
+	float d[3] = { dist(in.raw[0]), dist(in.raw[1]), dist(in.raw[2]) };
+	for (int i = 0; i < 3; i++)
+	{
+		if (d[i] >= 0.f)
+		{
+			in_n_p[num_in_p] = &in_n.raw[i];
+			in_w_p[num_in_p] = &in_w.raw[i];
+			in_p[num_in_p++] = &in.raw[i];
+		}
+		else
+		{
+			out_n_p[num_out_p] = &in_n.raw[i];
+			out_w_p[num_out_p] = &in_w.raw[i];
+			out_p[num_out_p++] = &in.raw[i];
+		}
+	}
+
+	//determine which course of action to take dependent on num inside points
+	switch (num_in_p)
+	{
+	case 0:
+		return 0; //can discard triangle
+	case 3:
+	{
+		out1 = in;
+		out_n1 = in_n;
+		out_w1 = in_w;
+		return 1; //don't need to clip triangle
+	}
+	case 2:
+	{
+		//need to form two extra triangles
+		//get intersections between points inside and outside
+		Vec3f p1 = intersect_plane(plane_p, plane_n, *in_p[0], *out_p[0]);
+		Vec3f p2 = intersect_plane(plane_p, plane_n, *in_p[1], *out_p[0]);
+
+		out1 = Triangle(p1, *in_p[0], *in_p[1]);
+		out2 = Triangle(p1, *in_p[1], p2);
+
+		//push normal vector of clipped points towards inner points by ratio of distance clipped to distance
+		float r_d1 = p1.dist(*in_p[0]) / in_p[0]->dist(*out_p[0]);  //ratio of distance
+		float r_d2 = p2.dist(*in_p[1]) / in_p[1]->dist(*out_p[0]);
+
+		Vec3f d_in_out1 = *in_n_p[0] - *out_n_p[0]; //change in normal
+		Vec3f d_in_out2 = *in_n_p[1] - *out_n_p[0];
+
+		p1 = *out_n_p[0] + (d_in_out1 * r_d1); //new normals
+		p2 = *out_n_p[0] + (d_in_out2 * r_d2);
+
+		out_n1 = Triangle(p1, *in_n_p[0], *in_n_p[1]);
+		out_n2 = Triangle(p1, *in_n_p[1], p2);
+
+		//determine change in world space triangle
+		d_in_out1 = *in_w_p[0] - *out_w_p[0]; //change in positions
+		d_in_out2 = *in_w_p[1] - *out_w_p[0];
+
+		p1 = *out_w_p[0] + (d_in_out1 * r_d1); //new positions
+		p2 = *out_w_p[0] + (d_in_out2 * r_d2);
+
+		out_w1 = Triangle(p1, *in_w_p[0], *in_w_p[1]);
+		out_w2 = Triangle(p1, *in_w_p[1], p2);
+
+		return 2;
+	}
+	case 1:
+	{
+		//simply set new end points on triangle
+		//get intersections between points inside and outside
+		Vec3f p1 = intersect_plane(plane_p, plane_n, *in_p[0], *out_p[0]);
+		Vec3f p2 = intersect_plane(plane_p, plane_n, *in_p[0], *out_p[1]);
+
+		out1 = Triangle(*in_p[0], p1, p2);
+
+		//push normal vector of clipped points towards inner points by ratio of distance clipped to distance
+		float r_d1 = p1.dist(*out_p[0]) / out_p[0]->dist(*in_p[0]); //ratio of distance
+		float r_d2 = p2.dist(*out_p[1]) / out_p[1]->dist(*in_p[0]);
+
+		Vec3f d_in_out1 = *in_n_p[0] - *out_n_p[0]; //change in normals
+		Vec3f d_in_out2 = *in_n_p[0] - *out_n_p[1];
+
+		p1 = *out_n_p[0] + (d_in_out1 * r_d1); //new normals
+		p2 = *out_n_p[1] + (d_in_out2 * r_d2);
+
+		out_n1 = Triangle(*in_n_p[0], p1, p2);
+
+		//determine change in world space triangle
+		d_in_out1 = *in_w_p[0] - *out_w_p[0]; //change in positions
+		d_in_out2 = *in_w_p[0] - *out_w_p[1];
+
+		p1 = *out_w_p[0] + (d_in_out1 * r_d1); //new positions
+		p2 = *out_w_p[1] + (d_in_out2 * r_d2);
+
+		out_w1 = Triangle(*in_w_p[0], p1, p2);
 
 		return 1;
 	}
@@ -525,10 +671,11 @@ static void clip_z(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norm
 * @param t_draws: vector of triangles to draw
 * @param t_norms: vector of vertex normals for each triangle
 */
-static void clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_norms)
+static void clip_xy(std::vector<Triangle> &t_draws, std::vector<Triangle> &t_norms, std::vector<Triangle> &t_world)
 {
 	std::vector<Triangle> new_draws;
 	std::vector<Triangle> new_norms;
+	std::vector<Triangle> new_world;
 
 	//get near and far plane
 	Vec3f plane_p_x0 = Vec3f(-0.9f, 0.f, 0.f);
@@ -543,6 +690,7 @@ static void clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_nor
 	{
 		Triangle out_x0[2], out_x1[2], out_y0[2], out_y1[2];
 		Triangle out_n_x0[2], out_n_x1[2], out_n_y0[2], out_n_y1[2];
+		Triangle out_w_x0[2], out_w_x1[2], out_w_y0[2], out_w_y1[2];
 		int num_x0, num_x1, num_y0, num_y1;
 
 		/**************************************************************************************************
@@ -555,24 +703,25 @@ static void clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_nor
 		**************************************************************************************************/
 
 		//clip x0 plane
-		num_x0 = clip(plane_p_x0, plane_n_x0, t_draws[i], t_norms[i], out_x0[0], out_x0[1], out_n_x0[0], out_n_x0[1]);
+		num_x0 = clip(plane_p_x0, plane_n_x0, t_draws[i], t_norms[i], t_world[i], out_x0[0], out_x0[1], out_n_x0[0], out_n_x0[1], out_w_x0[0], out_w_x0[1]);
 		for (int j = 0; j < num_x0; j++)
 		{
 			//clip x1 plane
-			num_x1 = clip(plane_p_x1, plane_n_x1, out_x0[j], out_n_x0[j], out_x1[0], out_x1[1], out_n_x1[0], out_n_x1[1]);
+			num_x1 = clip(plane_p_x1, plane_n_x1, out_x0[j], out_n_x0[j], out_w_x0[j], out_x1[0], out_x1[1], out_n_x1[0], out_n_x1[1], out_w_x1[0], out_w_x1[1]);
 			for (int k = 0; k < num_x1; k++)
 			{
 				//clip y0 plane
-				num_y0 = clip(plane_p_y0, plane_n_y0, out_x1[k], out_n_x1[k], out_y0[0], out_y0[1], out_n_y0[0], out_n_y0[1]);
+				num_y0 = clip(plane_p_y0, plane_n_y0, out_x1[k], out_n_x1[k], out_w_x1[k], out_y0[0], out_y0[1], out_n_y0[0], out_n_y0[1], out_w_y0[0], out_w_y0[1]);
 				for (int l = 0; l < num_y0; l++)
 				{
 					//clip y1 plane
-					num_y1 = clip(plane_p_y1, plane_n_y1, out_y0[l], out_n_y0[l], out_y1[0], out_y1[1], out_n_y1[0], out_n_y1[1]);
+					num_y1 = clip(plane_p_y1, plane_n_y1, out_y0[l], out_n_y0[l], out_w_y0[l], out_y1[0], out_y1[1], out_n_y1[0], out_n_y1[1], out_w_y1[0], out_w_y1[1]);
 					for (int m = 0; m < num_y1; m++)
 					{
 						//add to output
 						new_draws.push_back(out_y1[m]);
 						new_norms.push_back(out_n_y1[m]);
+						new_world.push_back(out_w_y1[m]);
 					}
 				}
 			}
@@ -582,8 +731,10 @@ static void clip_xy(std::vector<Triangle>& t_draws, std::vector<Triangle>& t_nor
 	//point to new data vectors
 	t_draws.clear();
 	t_norms.clear();
+	t_world.clear();
 	t_draws = new_draws;
 	t_norms = new_norms;
+	t_world = new_world;
 }
 /**
 * Draws all models to the screen
@@ -605,6 +756,7 @@ void Scene::draw()
 		std::vector<Triangle> t_draws;
 		std::vector<Triangle> t_norms;
 		std::vector<Vec3f> f_norms;
+		std::vector<Vec3f> lights = this->lights;
 		Mat4x4f local_to_world = scales[i] * translates[i];
 		for (int j = 0; j < faces.size(); j++)
 		{
@@ -642,6 +794,15 @@ void Scene::draw()
 			f_norms.push_back(f_norm);
 		}
 
+		//translate lights to camera world coords
+		for (int j = 0; j < lights.size(); j++)
+		{
+			lights[j] = Vec3f(vert_cam_mat * Vec4f(lights[j]));
+		}
+		//add cam pos to lights if cam_light set
+		if (cam_light)
+			lights.push_back(Vec3f(0.f, 0.f, 0.f)); //cam pos is origin after transform
+
 		//clip over z bounds
 		clip_z(t_draws, t_norms, f_norms, proj_mat.znear, proj_mat.zfar);
 
@@ -649,10 +810,11 @@ void Scene::draw()
 		cull(f_norms, t_draws, t_norms);
 
 		//project triangle to screen coords
+		std::vector<Triangle> t_world = t_draws; //copy pre-projected values for lighting
 		projection(t_draws);
 
 		//clip over x and y bounds
-		clip_xy(t_draws, t_norms);
+		clip_xy(t_draws, t_norms, t_world);
 
 		//draw all triangles
 		if (t_draws.size() != t_norms.size())
@@ -661,7 +823,7 @@ void Scene::draw()
 			continue;
 		}
 		for (int j = 0; j < t_draws.size(); j++)
-			triangle_to_screen(t_draws[j], t_norms[j], models[i].get()->get_color());
+			triangle_to_screen(t_draws[j], t_norms[j], t_world[j], lights, models[i].get()->get_color());
 	}
 }
 
@@ -698,7 +860,7 @@ void Scene::cull(std::vector<Vec3f> &f_norms, std::vector<Triangle> &t_draws, st
 		Vec3f face_to_cam = Vec3f(0.f, 0.f, 0.f) - center;  //camera position is 0 relative to object because of transform
 
 		//if the dot product between the camera and normal is less than 90 degrees, then we can draw
-		if (face_to_cam.norm().dot(face_n.norm()) >= 0.f)
+		if (face_to_cam.norm().dot(face_n.norm()) > 0.f)
 		{
 			new_draws.push_back(t_draws[i]);
 			new_norms.push_back(t_norms[i]);
@@ -710,7 +872,7 @@ void Scene::cull(std::vector<Vec3f> &f_norms, std::vector<Triangle> &t_draws, st
 	t_draws.clear();
 	t_norms.clear();
 	t_draws = new_draws;
-	t_norms = new_draws;
+	t_norms = new_norms;
 }
 
 /**
@@ -755,29 +917,30 @@ void Scene::projection(std::vector<Triangle>& t_draws)
 * @param t_norm: normal vectors of vertices in triangle
 * @param color: color to use in draw
 */
-void Scene::triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color) const
+void Scene::triangle_to_screen(Triangle &t_draw, Triangle &t_norm, Triangle &t_world, std::vector<Vec3f> lights, COLOR color) const
 {
 	//assume z values to be between 0 and 1, values outside of range will just not be drawn
 	//assume x and y values in range [-1, 1]
 
 	//normalize triangle coordinates to fit to screen
-	t_draw.A.x += 1.f;
-	t_draw.B.x += 1.f;
-	t_draw.C.x += 1.f;
-	t_draw.A.y += 1.f;
-	t_draw.B.y += 1.f;
-	t_draw.C.y += 1.f;
+	Triangle temp = t_draw; //copy values in t_draw in case need to be used later
+	temp.A.x += 1.f;
+	temp.B.x += 1.f;
+	temp.C.x += 1.f;
+	temp.A.y += 1.f;
+	temp.B.y += 1.f;
+	temp.C.y += 1.f;
 
 	float w = (float)get_buf_width();
 	float h = (float)get_buf_height();
 	int x0, x1, x2, y0, y1, y2;
 
-	x0 = (int)(t_draw.A.x * w / 2.f);
-	x1 = (int)(t_draw.B.x * w / 2.f);
-	x2 = (int)(t_draw.C.x * w / 2.f);
-	y0 = (int)(t_draw.A.y * h / 2.f);
-	y1 = (int)(t_draw.B.y * h / 2.f);
-	y2 = (int)(t_draw.C.y * h / 2.f);
+	x0 = (int)(temp.A.x * w / 2.f);
+	x1 = (int)(temp.B.x * w / 2.f);
+	x2 = (int)(temp.C.x * w / 2.f);
+	y0 = (int)(temp.A.y * h / 2.f);
+	y1 = (int)(temp.B.y * h / 2.f);
+	y2 = (int)(temp.C.y * h / 2.f);
 
 	/////////////////////////////////////////////////////////////////////
 	//actual drawing of triangles
@@ -789,6 +952,31 @@ void Scene::triangle_to_screen(Triangle &t_draw, Triangle &t_norm, PIXEL color) 
 	//else fill triangle using vertex normals to determine lighting
 	else
 	{
-		//TODO Complete
+		//want to go over every light in the scene and determine color value of each vertex based on the vertex normals
+		float color_r[3] = { 0.f, 0.f, 0.f }; //used to accumulate dot products
+		for (auto light : lights)
+		{
+			for (int i = 0; i < 3; i++)
+			{
+				Vec3f light_vec = (light - t_world.raw[i]).norm();
+				float dot = light_vec.dot(t_norm.raw[i].norm());
+				color_r[i] += (dot < 0.f) ? 0.f : dot;
+			}
+		}
+
+		//determine colors based on accumulated dot products
+		COLOR colors[3];
+		for (int i = 0; i < 3; i++)
+		{
+			if (color_r[i] >= 1.f)
+				colors[i] = color;
+			else if (color_r[i] <= 0.f)
+				colors[i] = 0x0;
+			else
+				colors[i] = (color * color_r[i]);
+		}
+
+		//draw filled triangle based on these points
+		fill_triangle(x0, y0, t_draw.A.z, x1, y1, t_draw.B.z, x2, y2, t_draw.C.z, colors[0], colors[1], colors[2]);
 	}
 }

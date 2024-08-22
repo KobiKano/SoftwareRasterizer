@@ -26,3 +26,8 @@
 /x64/Debug/SoftwareRasterizer.exe
 /x64/Debug/SoftwareRasterizer.pdb
 /SoftwareRasterizer.vcxproj.filters
+/Software.F26C9496/x64/Release
+/Software.F26C9496/x64/Debug/camera.obj
+/Software.F26C9496/x64/Debug/draw.obj
+/Software.F26C9496/x64/Debug/model.obj
+/Software.F26C9496/x64/Debug/scene.obj

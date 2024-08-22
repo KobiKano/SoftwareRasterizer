@@ -2,13 +2,20 @@
 #define UNICODE
 #endif 
 
+#ifdef _WINDOWS
 #include "window/window.h"
 #include "logger/logger.h"
 #include "rasterizer/funcs.h"
 #include <iostream>
+#endif
 
 void main(int argc, char* argv[])
 {
+#ifndef _WINDOWS
+	//this program requires windows to run if windows not being used end process
+	fprintf(stderr, "Program requires Windows OS to run, exiting...\n");
+	exit(1);
+#else
 	//set logger level
 	logger_set_level(DEBUG2);
 
@@ -28,4 +35,5 @@ void main(int argc, char* argv[])
 	//default exit(should never be reached)
 	log(WARNING, "Loop exited without ending process...");
 	exit(0);
+#endif
 }

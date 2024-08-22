@@ -13,7 +13,7 @@ constexpr float PI = 3.14159265358979323846f;
 class Model
 {
 private:
-	PIXEL color;
+	COLOR color;
 	std::vector<Vec3f> vertices;
 	std::vector<Vec3f> textures;
 	std::vector<Vec3f> vert_normals;
@@ -27,8 +27,8 @@ private:
 public:
 	Model(const char* filepath);
 	~Model();
-	void set_color(PIXEL color);
-	PIXEL get_color() const;
+	void set_color(COLOR color);
+	COLOR get_color() const;
 	std::vector<Vec3f>& get_vertices();
 	std::vector<Vec3f>& get_textures();
 	std::vector<Vec3f>& get_vert_normals();

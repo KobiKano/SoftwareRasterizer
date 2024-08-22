@@ -1,7 +1,7 @@
 /*
 * Credit for a lot of this code goes to https://github.com/TanukiSharp/SoftwareRasterizer/blob/master/RenderLibrary/renderlib.c
 */
-
+#ifdef _WINDOWS
 #include "window.h"
 #include "../logger/logger.h"
 #include <Windows.h>
@@ -45,7 +45,7 @@ static int _frames = -1;
 static FILETIME _start_frame_time = { 0 };
 static FILETIME _start_total_time = { 0 };
 
-static PIXEL* _buf = NULL;  //heap allocated array of uint32 for each pixel on screen to hold color value
+static COLOR* _buf = NULL;  //heap allocated array of uint32 for each pixel on screen to hold color value
 static float* _z_buf = NULL;  //z buffer
 static BITMAPINFO _bmp_info;
 
@@ -55,7 +55,7 @@ static BITMAPINFO _bmp_info;
 bool get_draw_locked() { return _draw_locked; }
 int get_buf_width() { return _buf_width; }
 int get_buf_height() { return _buf_height; }
-PIXEL* get_buf() { return _buf; }
+COLOR* get_buf() { return _buf; }
 float* get_z_buf() { return _z_buf; }
 
 /*
@@ -75,7 +75,7 @@ static bool resize(int width, int height)
     //reallocate buffer
     free(_buf);
     free(_z_buf);
-    _buf = (PIXEL*)calloc((size_t)_buf_height * (size_t)_buf_width, sizeof(PIXEL));
+    _buf = (COLOR*)calloc((size_t)_buf_height * (size_t)_buf_width, sizeof(COLOR));
     _z_buf = (float*)malloc((size_t)_buf_height * (size_t)_buf_width * sizeof(float));
     if (_buf == NULL || _z_buf == NULL)
     {
@@ -269,7 +269,7 @@ int create_window(const char* name, int width, int height)
     }
 
     //allocate space for client area buffer
-    _buf = (PIXEL*)calloc((size_t)_buf_height * (size_t)_buf_width, sizeof(PIXEL));
+    _buf = (COLOR*)calloc((size_t)_buf_height * (size_t)_buf_width, sizeof(COLOR));
     _z_buf = (float*)malloc((size_t)_buf_height * (size_t)_buf_width * sizeof(float));
     if (_buf == NULL || _z_buf == NULL)
     {
@@ -334,7 +334,7 @@ void window_clear()
         return;
     }
 
-    memset((void*)_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(PIXEL));
+    memset((void*)_buf, 0, (size_t)_buf_width * (size_t)_buf_height * sizeof(COLOR));
     //very annoying but have to manually set all values to float 1.0, but compiler will optimize
     for (size_t i = 0; i < (size_t)_buf_height * (size_t)_buf_width; i++)
     {
@@ -460,3 +460,4 @@ void window_sync_end(int fps_cap, bool print_fps)
         _frames = 0;
     }
 }
+#endif
