@@ -16,7 +16,7 @@ struct COLOR
 
 	//constructors
 	COLOR() { val = 0x0; }
-	COLOR(uint32_t val) { this->val = val; }
+	COLOR(uint32_t val) { R = (val & 0xFF0000) >> 16; G = (val & 0x00FF00) >> 8; B = (val & 0x0000FF);}
 	COLOR(uint8_t R, uint8_t G, uint8_t B) { this->R = R; this->G = G; this->B = B; this->alpha = 0x0; }
 	COLOR(uint8_t R, uint8_t G, uint8_t B, uint8_t alpha) { this->R = R; this->G = G; this->B = B; this->alpha = alpha; }
 

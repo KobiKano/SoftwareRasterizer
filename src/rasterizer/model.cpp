@@ -1,5 +1,5 @@
 #include "model.h"
-#include "funcs.h"
+#include "proc.h"
 #include "../logger/logger.h"
 #include "../window/window.h"
 #include <iostream>
@@ -7,30 +7,6 @@
 #include <memory>
 #include <string>
 #include <sstream>
-
-/**
-* Gets filepath of model from user, then parses that file
-* @return: pointer to new model object
-*/
-std::shared_ptr<Model> get_model()
-{
-	std::string in;
-	std::cout << "Input FILENAME of model -(src/Models/{FILENAME})-, or press enter to use default\n";
-	in = std::cin.get();
-	std::string path = "Models/" + in;
-	std::ifstream f(path.c_str());
-	if (in[0] == '\n' || !f.good())
-	{
-		log(WARNING, "Invalid path, defaulting to cube");
-		path = "Models/cube.obj";
-	}
-	else {
-		path = path.substr(0, path.size() - 1);
-		f.close();
-	}
-	
-	return std::shared_ptr<Model>(new Model(path.c_str()));
-}
 
 /**
 * Constructor for Model
@@ -159,6 +135,19 @@ Model::Model(const char* filename)
 	for (int i = 0; i < face_normals.size(); i++)
 	{
 		face_normals[i] = face_normals[i].norm();
+	}
+
+	//center vertices
+	Vec3f center = { 0.f, 0.f, 0.f };
+	for (auto v : vertices)
+	{
+		center = center + v;
+	}
+	center = center / vertices.size();
+	Vec3f diff = Vec3f(0.f, 0.f, 0.f) - center;
+	for (int i = 0; i < vertices.size(); i++)
+	{
+		vertices[i] = vertices[i] + diff;
 	}
 
 	//default color to white

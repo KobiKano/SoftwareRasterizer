@@ -1,4 +1,4 @@
-#include "funcs.h"
+#include "proc.h"
 #include "geom.h"
 #include "model.h"
 #include "render.h"
@@ -82,7 +82,7 @@ int Scene::reg_model(std::shared_ptr<Model> m)
 * @param scale: scale of model
 * @return: index of model
 */
-int Scene::reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale)
+int Scene::reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale, COLOR color)
 {
 	models.push_back(m);
 	//init with defaults
@@ -94,8 +94,18 @@ int Scene::reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale)
 	int i = (int)models.size() - 1;
 	this->set_pos(i, center);
 	this->set_scale(i, scale);
+	this->set_color(i, color);
 
 	return i;
+}
+
+/**
+* Gets number of models
+* @return number of models in scene
+*/
+int Scene::num_models()
+{
+	return models.size();
 }
 /**
 * Sets projection matrix
@@ -161,6 +171,15 @@ void Scene::set_wireframe(bool b)
 void Scene::set_cam_light(bool b)
 {
 	cam_light = b;
+}
+/**
+* Sets color of model at index
+* @param index: index of model
+* @param color: color to set
+*/
+void Scene::set_color(int index, COLOR color)
+{
+	models[index].get()->set_color(color);
 }
 /**
 * Adds pitch to object rotation

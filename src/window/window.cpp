@@ -443,7 +443,7 @@ void window_sync_end(int fps_cap, bool print_fps)
 
     //check if capping fps
     if (fps_cap != 0)
-        window_sleep((1000 * 1000 / fps_cap) - ((current_frame_time.QuadPart - start_frame_time.QuadPart) / 10));
+        window_sleep((1000000 / fps_cap) - ((current_frame_time.QuadPart - start_frame_time.QuadPart) / 10));
         
     if (!print_fps)
         return;

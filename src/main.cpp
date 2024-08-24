@@ -5,7 +5,7 @@
 #ifdef _WINDOWS
 #include "window/window.h"
 #include "logger/logger.h"
-#include "rasterizer/funcs.h"
+#include "rasterizer/proc.h"
 #include <iostream>
 #endif
 
@@ -30,7 +30,8 @@ void main(int argc, char* argv[])
 	window_update();
 
 	//run loop on this process
-	proc_loop();
+	Proc proc("../config.txt");
+	proc.start();
 
 	//default exit(should never be reached)
 	log(WARNING, "Loop exited without ending process...");

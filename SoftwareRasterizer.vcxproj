@@ -30,7 +30,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\logger\logger.h" />
-    <ClInclude Include="src\rasterizer\funcs.h" />
+    <ClInclude Include="src\rasterizer\proc.h" />
     <ClInclude Include="src\rasterizer\geom.h" />
     <ClInclude Include="src\rasterizer\model.h" />
     <ClInclude Include="src\rasterizer\quaternion.h" />
@@ -38,6 +38,7 @@
     <ClInclude Include="src\window\window.h" />
   </ItemGroup>
   <ItemGroup>
+    <Text Include="config.txt" />
     <Text Include="src\Models\cube.obj">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>

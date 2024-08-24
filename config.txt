@@ -1,0 +1,23 @@
+# Basic config file for scene
+# Defines layout of scene
+
+# define projection parameters
+fov_deg 90.0
+# z bound, znear then z far
+z_bound 1.0 10.0
+
+# define scene properties 0 is false 1 is true
+wireframe 0
+cam_light 1
+
+# define light properties as position in (x, y, z) of source
+light -1.0 -1.0 -1.0
+# can add as many as needed as follows
+light 1.0 1.0 1.0
+
+# define models
+# define model as name of file (without.obj) in src/Models then hex value of color then position of model (x, y, z) then scale of model
+model cube 0xFFFFFF -2.0 0.0 0.0 1.0
+model cube 0xFF0000 2.0 0.0 0.0 1.0
+model cube 0x00FF00 -2.0 0.0 2.0 1.0
+model cube 0x0000FF 2.0 0.0 2.0 1.0

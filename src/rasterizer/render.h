@@ -61,7 +61,8 @@ public:
 	Scene();
 	~Scene();
 	int reg_model(std::shared_ptr<Model> m);
-	int reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale);
+	int reg_model(std::shared_ptr<Model> m, Vec3f &center, float scale, COLOR color);
+	int num_models();
 	void draw();
 	void process_inputs();
 	void set_cam_step(float step);
@@ -70,6 +71,7 @@ public:
 	void add_roll(int index, float rads);
 	void add_yaw(int index, float rads);
 	void set_rot_order(int index, int order[3]);
+	void set_color(int index, COLOR color);
 	void set_scale(int index, float scale);
 	void set_projection(float fov_rad, float zfar, float znear, float aspect_r);
 	void set_aspect_ratio(float aspect_r);
