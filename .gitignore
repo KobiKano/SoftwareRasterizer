@@ -33,3 +33,7 @@
 /Software.F26C9496/x64/Debug/scene.obj
 /x64/Release/SoftwareRasterizer.exe
 /x64/Release/SoftwareRasterizer.pdb
+/.vs/RenderEngine/v17
+/RenderEngine/x64/Release
+/x64/Release
+/RenderEngine.vcxproj.filters
