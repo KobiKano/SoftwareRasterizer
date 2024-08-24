@@ -44,6 +44,7 @@
     <VCProjectVersion>17.0</VCProjectVersion>
     <ProjectGuid>{F26C9496-EC1E-4348-B5BE-634F0A3148F7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
+    <ProjectName>RenderEngine</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
