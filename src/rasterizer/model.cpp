@@ -77,15 +77,15 @@ Model::Model(const char* filename)
 			while (s >> t)
 			{
 				std::string val;
-			int start = 0;
-			int end = 0;
+				int start = 0;
+				int end = 0;
 				Vec3i nf(-1,-1,-1); //-1 to indicate empty
 				for (int i = 0; i < 3; i++)
 				{
 					if (t[start] == '\0')
 						break;
 
-					while (t[end] != '\\' && end != t.size())
+					while (!(t[end] == '\\' || t[end] == '/') && end != t.size())
 					{
 						//find delim
 						end++;
@@ -227,7 +227,7 @@ std::vector<std::vector<Vec3i>>& Model::get_faces()
 ***********************************************************************************************************************/
 
 /**
-* Normalize all vertices to [0, 1]
+* Normalize all vertices to [-1, 1]
 * @param largest: largest vertex value
 * @param smallest: smallest vertex value
 */
@@ -292,7 +292,7 @@ void Model::add_normals()
 			Vec3f B = vert_normals[faces[i][1].i_norm];
 			Vec3f C = vert_normals[faces[i][2].i_norm];
 
-			face_normals[i] = A + B + C;
+			face_normals[i] = (A + B + C).norm();
 		}
 	}
 }

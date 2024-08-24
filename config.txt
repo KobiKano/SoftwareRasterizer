@@ -18,6 +18,6 @@ light 1.0 1.0 1.0
 # define models
 # define model as name of file (without.obj) in src/Models then hex value of color then position of model (x, y, z) then scale of model
 model cube 0xFFFFFF -2.0 0.0 0.0 1.0
-model cube 0xFF0000 2.0 0.0 0.0 1.0
-model cube 0x00FF00 -2.0 0.0 2.0 1.0
-model cube 0x0000FF 2.0 0.0 2.0 1.0
+model spaceship 0xFF0000 0.0 0.0 0.0 1.0
+model teapot 0x00FF00 2.0 0.0 0.0 1.0
+model table 0x0000FF 4.0 0.0 0.0 1.0

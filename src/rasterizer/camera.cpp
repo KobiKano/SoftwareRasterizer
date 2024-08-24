@@ -8,8 +8,8 @@ Camera::Camera()
 	step = 0.01f;
 	pos = Vec3f(0.f, 0.f, -1.f);
 	dir = Vec3f(0.f, 0.f, 1.f);
-	v_up = Vec3f(0.f, 1.f, 0.f);
-	v_right = Vec3f(1.f, 0.f, 0.f);
+	v_up = Vec3f(0.f, -1.f, 0.f);
+	v_right = Vec3f(-1.f, 0.f, 0.f);
 }
 Camera::Camera(float step)
 {
@@ -17,8 +17,8 @@ Camera::Camera(float step)
 	this->step = step;
 	pos = Vec3f(0.f, 0.f, -1.f);
 	dir = Vec3f(0.f, 0.f, 1.f);
-	v_up = Vec3f(0.f, 1.f, 0.f);
-	v_right = Vec3f(1.f, 0.f, 0.f);
+	v_up = Vec3f(0.f, -1.f, 0.f);
+	v_right = Vec3f(-1.f, 0.f, 0.f);
 }
 
 /**
