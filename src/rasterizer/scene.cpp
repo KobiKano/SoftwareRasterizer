@@ -879,7 +879,7 @@ void Scene::cull(std::vector<Vec3f> &f_norms, std::vector<Triangle> &t_draws, st
 		Vec3f face_to_cam = Vec3f(0.f, 0.f, 0.f) - center;  //camera position is 0 relative to object because of transform
 
 		//if the dot product between the camera and normal is less than 90 degrees, then we can draw
-		if (face_to_cam.norm().dot(face_n.norm()) >= -0.9999f) //account for some error
+		if (face_to_cam.norm().dot(face_n.norm()) >= -0.1f) //account for some error
 		{
 			new_draws.push_back(t_draws[i]);
 			new_norms.push_back(t_norms[i]);

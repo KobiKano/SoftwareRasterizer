@@ -285,7 +285,6 @@ void fill_triangle(int x0, int y0, float z0,
     Vec3i AC = C - A;
     float Area_ABC = AB.cross(AC).value() / 2.f;
 
-    bool hit = false; //used to determine if we have hit the triangle or not, if hit then we can increase y and go back to old x
     while (y != (y_max + 1))
     {
         //determine if point is in triangle using barycentric coordinate system
@@ -300,35 +299,21 @@ void fill_triangle(int x0, int y0, float z0,
 
         //if sum of u v and w does not equal 1.0, then point not in triangle
         //allow for small error
-        if (((u + v + w) <= 0.9999f) || ((u + v + w) >= 1.0001f))
+        if (((u + v + w) >= 0.99f) && ((u + v + w) <= 1.01f))
         {
-            if (hit || x == (x_max + 1))
-            {
-                y++;
-                x = x_min; //can't just turn around due to possible large x step over next y
-                hit = false;
-                continue;
-            }
-            //else increase x and continue
-            x++;
-            continue;
+            //point in triangle, determine color and depth val dependent on barycentric weights
+            COLOR color = (color0 * w) + (color1 * u) + (color2 * v);
+            float depth = (z0 * w) + (z1 * u) + (z2 * v);
+            set_pixel(x, y, color, depth);
         }
 
-        //point in triangle, determine color and depth val dependent on barycentric weights
-        COLOR color = (color0 * w) + (color1 * u) + (color2 * v);
-        float depth = (z0 * w) + (z1 * u) + (z2 * v);
-        set_pixel(x, y, color, depth);
-
-        //set hit val and increase x
-        hit = true;
+        //increase x
+        x++;
         if (x == (x_max + 1))
         {
-            hit = false;
             x = x_min;
             y++;
         }
-        else
-            x++;
     }
 }
 #endif
