@@ -12,6 +12,12 @@
 - Either run using given cmake file or use Microsoft Visual Studio build system to compile and run
 - Modify config.txt to get desired scene
 
+# Controls
+- Use WASD to move camera around scene.
+- Use arrow keys to look around.
+- Use Tab to move camera up and CTRL to move camera down
+- Use z to roll left and c to roll right
+
 # Overview
 	Originally this was going to be a project where I build a software rasterizer.
 	However, I realized that it would be more beneficial and make more sense to
