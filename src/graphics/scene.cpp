@@ -1,9 +1,9 @@
-#include "proc.h"
-#include "geom.h"
-#include "model.h"
-#include "render.h"
-#include "../window/window.h"
-#include "../logger/logger.h"
+#include "proc.hpp"
+#include "geom.hpp"
+#include "model.hpp"
+#include "render.hpp"
+#include "../window/window.hpp"
+#include "../logger/logger.hpp"
 
 /**
 * Projection matrix for this renderer

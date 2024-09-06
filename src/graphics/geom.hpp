@@ -5,7 +5,6 @@
 #include <stdio.h>
 #include <string>
 #include <memory>
-#include "geom.h"
 
 template <class t> struct Vec3
 {

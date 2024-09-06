@@ -1,7 +1,7 @@
 #ifdef _WINDOWS
-#include "window.h"
-#include "../logger/logger.h"
-#include "../rasterizer/geom.h"
+#include "window.hpp"
+#include "../logger/logger.hpp"
+#include "../graphics/geom.hpp"
 #include <string>
 #include <vector>
 

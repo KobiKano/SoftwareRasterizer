@@ -1,8 +1,8 @@
 #pragma once
 
-#include "geom.h"
-#include "model.h"
-#include "quaternion.h"
+#include "geom.hpp"
+#include "model.hpp"
+#include "quaternion.hpp"
 #include <vector>
 
 //very self explanitory camera class

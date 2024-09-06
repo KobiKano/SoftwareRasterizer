@@ -2,8 +2,8 @@
 * Credit for a lot of this code goes to https://github.com/TanukiSharp/SoftwareRasterizer/blob/master/RenderLibrary/renderlib.c
 */
 #ifdef _WINDOWS
-#include "window.h"
-#include "../logger/logger.h"
+#include "window.hpp"
+#include "../logger/logger.hpp"
 #include <Windows.h>
 #include <stdio.h>
 #include <string>

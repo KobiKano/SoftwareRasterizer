@@ -1,10 +1,10 @@
 #pragma once
 #include <memory>
 #include <vector>
-#include "model.h"
-#include "geom.h"
-#include "render.h"
-#include "../window/window.h"
+#include "model.hpp"
+#include "geom.hpp"
+#include "render.hpp"
+#include "../window/window.hpp"
 
 constexpr auto RED   = 0xFF0000;
 constexpr auto BLUE  = 0x0000FF;

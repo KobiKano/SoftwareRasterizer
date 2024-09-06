@@ -1,6 +1,6 @@
-#include "render.h"
-#include "quaternion.h"
-#include "geom.h"
+#include "render.hpp"
+#include "quaternion.hpp"
+#include "geom.hpp"
 
 Camera::Camera()
 {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "geom.h"
+#include "geom.hpp"
 #include <cmath>
 #include <vector>
 #include <stdexcept>

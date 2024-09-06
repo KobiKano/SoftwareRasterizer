@@ -3,9 +3,9 @@
 #endif 
 
 #ifdef _WINDOWS
-#include "window/window.h"
-#include "logger/logger.h"
-#include "rasterizer/proc.h"
+#include "window/window.hpp"
+#include "logger/logger.hpp"
+#include "graphics/proc.hpp"
 #include <iostream>
 #endif
 

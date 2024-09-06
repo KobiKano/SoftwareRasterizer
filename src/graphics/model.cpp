@@ -1,7 +1,7 @@
-#include "model.h"
-#include "proc.h"
-#include "../logger/logger.h"
-#include "../window/window.h"
+#include "model.hpp"
+#include "proc.hpp"
+#include "../logger/logger.hpp"
+#include "../window/window.hpp"
 #include <iostream>
 #include <fstream>
 #include <memory>

@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <string>
 #include <memory>
-#include "geom.h"
-#include "../window/window.h"
+#include "geom.hpp"
+#include "../window/window.hpp"
 
 constexpr float PI = 3.14159265358979323846f;
 

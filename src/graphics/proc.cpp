@@ -1,8 +1,8 @@
-#include "proc.h"
-#include "render.h"
-#include "geom.h"
-#include "../logger/logger.h"
-#include "../window/window.h"
+#include "proc.hpp"
+#include "render.hpp"
+#include "geom.hpp"
+#include "../logger/logger.hpp"
+#include "../window/window.hpp"
 #include <iostream>
 #include <string>
 #include <fstream>
