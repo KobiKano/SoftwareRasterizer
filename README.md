@@ -34,11 +34,11 @@
 - plane clipping and culling
 - depth buffering
 
-## wireframe models (clipping and culling)
-![wireframe](gifs/wireframe)
+## Wireframe Models (clipping and culling)
+![wireframe](gifs/wireframe.gif)
 
-## preconfigured scene
-![config_scene](gifs/ConfigScene)
+## Preconfigured Scene
+![config_scene](gifs/ConfigScene.gif)
 
 # The Process (getting more in depth)
 ## Window and resizing
